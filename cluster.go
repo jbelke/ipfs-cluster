@@ -8,10 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gxed/opencensus-go/stats"
+	"github.com/gxed/opencensus-go/tag"
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/metrics"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -159,6 +162,9 @@ func NewCluster(
 		c.ready(ReadyTimeout)
 		c.run()
 	}()
+
+	c.setupMetrics()
+
 	return c, nil
 }
 
@@ -184,6 +190,15 @@ func (c *Cluster) setupRPCClients() {
 	c.monitor.SetClient(c.rpcClient)
 	c.allocator.SetClient(c.rpcClient)
 	c.informer.SetClient(c.rpcClient)
+}
+
+func (c *Cluster) setupMetrics() {
+	for _, f := range defaultMetricInitFuncs {
+		err := f(c.ctx, c.rpcClient)
+		if err != nil {
+			logger.Error(err)
+		}
+	}
 }
 
 // syncWatcher loops and triggers StateSync and SyncAllLocal from time to time
@@ -1369,4 +1384,67 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 		}
 	}
 	return
+}
+
+type metricInit func(context.Context, *rpc.Client) error
+
+var (
+	defaultMetricInitFuncs = []metricInit{
+		initPinCountMetric,
+		initTrackerPinCountMetric,
+	}
+)
+
+func initPinCountMetric(ctx context.Context, rpc *rpc.Client) error {
+	var pins []api.PinSerial
+	err := rpc.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"Pins",
+		struct{}{},
+		&pins,
+	)
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+	stats.Record(ctx, metrics.PinCountMetric.M(int64(len(pins))))
+	return nil
+}
+
+func initTrackerPinCountMetric(ctx context.Context, rpc *rpc.Client) error {
+	var id api.IDSerial
+	err := rpc.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"ID",
+		struct{}{},
+		&id,
+	)
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+
+	var pins []api.PinInfoSerial
+	err = rpc.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"StatusAllLocal",
+		struct{}{},
+		&pins,
+	)
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+	ctx, err = tag.New(
+		ctx,
+		tag.Upsert(metrics.HostKey, id.ToID().ID.String()),
+	)
+	stats.Record(ctx, metrics.TrackerPinCountMetric.M(int64(len(pins))))
+	return nil
 }

@@ -8,8 +8,11 @@ import (
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/metrics"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/util"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -137,6 +140,12 @@ func (mpt *MapPinTracker) pin(op *optracker.Operation) error {
 	if err != nil {
 		return err
 	}
+	ctx, err := tag.New(
+		mpt.ctx,
+		tag.Upsert(metrics.HostKey, mpt.peerID.String()),
+	)
+	stats.Record(ctx, metrics.TrackerPinCountMetric.M(1))
+
 	return nil
 }
 
@@ -153,6 +162,11 @@ func (mpt *MapPinTracker) unpin(op *optracker.Operation) error {
 	if err != nil {
 		return err
 	}
+	ctx, err := tag.New(
+		mpt.ctx,
+		tag.Upsert(metrics.HostKey, mpt.peerID.String()),
+	)
+	stats.Record(ctx, metrics.TrackerPinCountMetric.M(-1))
 
 	return nil
 }

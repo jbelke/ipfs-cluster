@@ -25,6 +25,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/trace"
 
 	mux "github.com/gorilla/mux"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
@@ -98,13 +99,13 @@ type peerAddBody struct {
 }
 
 // NewAPI creates a new REST API component with the given configuration.
-func NewAPI(cfg *Config) (*API, error) {
-	return NewAPIWithHost(cfg, nil)
+func NewAPI(ctx context.Context, cfg *Config) (*API, error) {
+	return NewAPIWithHost(ctx, cfg, nil)
 }
 
 // NewAPIWithHost creates a new REST API component and enables
 // the libp2p-http endpoint using the given Host, if not nil.
-func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
+func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -131,7 +132,7 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	// on why this is re-enabled.
 	s.SetKeepAlivesEnabled(true)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	api := &API{
 		ctx:      ctx,
@@ -144,7 +145,7 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	api.addRoutes(router)
 
 	// Set up api.httpListener if enabled
-	err = api.setupHTTP()
+	err = api.setupHTTP(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -159,11 +160,11 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 		return nil, ErrNoEndpointsEnabled
 	}
 
-	api.run()
+	api.run(ctx)
 	return api, nil
 }
 
-func (api *API) setupHTTP() error {
+func (api *API) setupHTTP(ctx context.Context) error {
 	if api.config.HTTPListenAddr == nil {
 		return nil
 	}
@@ -406,20 +407,20 @@ func (api *API) routes() []route {
 	}
 }
 
-func (api *API) run() {
+func (api *API) run(ctx context.Context) {
 	if api.httpListener != nil {
 		api.wg.Add(1)
-		go api.runHTTPServer()
+		go api.runHTTPServer(ctx)
 	}
 
 	if api.libp2pListener != nil {
 		api.wg.Add(1)
-		go api.runLibp2pServer()
+		go api.runLibp2pServer(ctx)
 	}
 }
 
 // runs in goroutine from run()
-func (api *API) runHTTPServer() {
+func (api *API) runHTTPServer(ctx context.Context) {
 	defer api.wg.Done()
 	<-api.rpcReady
 
@@ -431,7 +432,7 @@ func (api *API) runHTTPServer() {
 }
 
 // runs in goroutine from run()
-func (api *API) runLibp2pServer() {
+func (api *API) runLibp2pServer(ctx context.Context) {
 	defer api.wg.Done()
 	<-api.rpcReady
 
@@ -450,6 +451,9 @@ func (api *API) runLibp2pServer() {
 
 // Shutdown stops any API listeners.
 func (api *API) Shutdown() error {
+	_, span := trace.StartSpan(api.ctx, "Shutdown")
+	defer span.End()
+
 	api.shutdownLock.Lock()
 	defer api.shutdownLock.Unlock()
 
@@ -634,11 +638,14 @@ func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := trace.StartSpan(r.Context(), "pinHandler")
+	defer span.End()
+
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		logger.Debugf("rest api pinHandler: %s", ps.Cid)
 
 		err := api.rpcClient.CallContext(
-			r.Context(),
+			ctx,
 			"",
 			"Cluster",
 			"Pin",
@@ -651,10 +658,13 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := trace.StartSpan(r.Context(), "unpinHandler")
+	defer span.End()
+
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		logger.Debugf("rest api unpinHandler: %s", ps.Cid)
 		err := api.rpcClient.CallContext(
-			r.Context(),
+			ctx,
 			"",
 			"Cluster",
 			"Unpin",
@@ -736,6 +746,9 @@ func filterGlobalPinInfos(globalPinInfos []types.GlobalPinInfoSerial, filter typ
 }
 
 func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := trace.StartSpan(r.Context(), "statusAllHandler")
+	defer span.End()
+
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
@@ -752,7 +765,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 		var pinInfos []types.PinInfoSerial
 
 		err := api.rpcClient.CallContext(
-			r.Context(),
+			ctx,
 			"",
 			"Cluster",
 			"StatusAllLocal",
@@ -766,7 +779,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 		globalPinInfos = pinInfosToGlobal(pinInfos)
 	} else {
 		err := api.rpcClient.CallContext(
-			r.Context(),
+			ctx,
 			"",
 			"Cluster",
 			"StatusAll",
@@ -785,6 +798,9 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := trace.StartSpan(r.Context(), "statusHandler")
+	defer span.End()
+
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
@@ -792,7 +808,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 		if local == "true" {
 			var pinInfo types.PinInfoSerial
 			err := api.rpcClient.CallContext(
-				r.Context(),
+				ctx,
 				"",
 				"Cluster",
 				"StatusLocal",
