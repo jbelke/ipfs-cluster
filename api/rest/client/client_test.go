@@ -16,6 +16,7 @@ import (
 )
 
 func testAPI(t *testing.T) *rest.API {
+	ctx := context.Background()
 	//logging.SetDebugLogging()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
@@ -37,7 +38,7 @@ func testAPI(t *testing.T) *rest.API {
 		t.Fatal(err)
 	}
 
-	rest, err := rest.NewAPIWithHost(cfg, h)
+	rest, err := rest.NewAPIWithHost(ctx, cfg, h)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}

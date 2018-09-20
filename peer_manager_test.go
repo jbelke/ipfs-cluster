@@ -61,6 +61,7 @@ func clusterAddr(c *Cluster) ma.Multiaddr {
 }
 
 func TestClustersPeerAdd(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := peerManagerClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -82,7 +83,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	}
 
 	h, _ := cid.Decode(test.TestCid1)
-	err := clusters[1].Pin(api.PinCid(h))
+	err := clusters[1].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,6 +316,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 }
 
 func TestClustersPeerRemoveReallocsPins(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := createClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -363,7 +365,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	for i := 0; i < nClusters; i++ {
 		h, err := prefix.Sum(randomBytes())
 		checkErr(t, err)
-		err = leader.Pin(api.PinCid(h))
+		err = leader.Pin(ctx, api.PinCid(h))
 		checkErr(t, err)
 		ttlDelay()
 	}
@@ -415,6 +417,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 }
 
 func TestClustersPeerJoin(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := peerManagerClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -429,7 +432,7 @@ func TestClustersPeerJoin(t *testing.T) {
 		}
 	}
 	hash, _ := cid.Decode(test.TestCid1)
-	clusters[0].Pin(api.PinCid(hash))
+	clusters[0].Pin(ctx, api.PinCid(hash))
 	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
@@ -446,6 +449,7 @@ func TestClustersPeerJoin(t *testing.T) {
 }
 
 func TestClustersPeerJoinAllAtOnce(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := peerManagerClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -462,7 +466,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	runF(t, clusters[1:], f)
 
 	hash, _ := cid.Decode(test.TestCid1)
-	clusters[0].Pin(api.PinCid(hash))
+	clusters[0].Pin(ctx, api.PinCid(hash))
 	pinDelay()
 
 	f2 := func(t *testing.T, c *Cluster) {
@@ -529,12 +533,13 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 
 // Tests that a peer catches up on the state correctly after rejoining
 func TestClustersPeerRejoin(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := peerManagerClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
 	// pin something in c0
 	pin1, _ := cid.Decode(test.TestCid1)
-	err := clusters[0].Pin(api.PinCid(pin1))
+	err := clusters[0].Pin(ctx, api.PinCid(pin1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -551,7 +556,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// all added peers should have the content
 	for i := 1; i < len(clusters); i++ {
-		pinfo := clusters[i].tracker.Status(pin1)
+		pinfo := clusters[i].tracker.Status(ctx, pin1)
 		if pinfo.Status != api.TrackerStatusPinned {
 			t.Error("Added peers should pin the content")
 		}
@@ -574,7 +579,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// Pin something on the rest
 	pin2, _ := cid.Decode(test.TestCid2)
-	err = clusters[1].Pin(api.PinCid(pin2))
+	err = clusters[1].Pin(ctx, api.PinCid(pin2))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -592,12 +597,12 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	delay()
 
-	pinfo := clusters[0].tracker.Status(pin2)
+	pinfo := clusters[0].tracker.Status(ctx, pin2)
 	if pinfo.Status != api.TrackerStatusPinned {
 		t.Error("re-joined cluster should have caught up")
 	}
 
-	pinfo = clusters[0].tracker.Status(pin1)
+	pinfo = clusters[0].tracker.Status(ctx, pin1)
 	if pinfo.Status != api.TrackerStatusPinned {
 		t.Error("re-joined cluster should have original pin")
 	}

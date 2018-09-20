@@ -6,6 +6,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/trace"
 )
 
 // RPCAPI is a go-libp2p-gorpc service which provides the internal ipfs-cluster
@@ -32,13 +33,17 @@ func (rpcapi *RPCAPI) ID(ctx context.Context, in struct{}, out *api.IDSerial) er
 
 // Pin runs Cluster.Pin().
 func (rpcapi *RPCAPI) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	return rpcapi.c.Pin(in.ToPin())
+	ctx, span := trace.StartSpan(ctx, "rpc/cluster/Pin")
+	defer span.End()
+	return rpcapi.c.Pin(ctx, in.ToPin())
 }
 
 // Unpin runs Cluster.Unpin().
 func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	ctx, span := trace.StartSpan(ctx, "rpc/cluster/Unpin")
+	defer span.End()
 	c := in.DecodeCid()
-	return rpcapi.c.Unpin(c)
+	return rpcapi.c.Unpin(ctx, c)
 }
 
 // Pins runs Cluster.Pins().
@@ -243,40 +248,52 @@ func (rpcapi *RPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *
 
 // Track runs PinTracker.Track().
 func (rpcapi *RPCAPI) Track(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	return rpcapi.c.tracker.Track(in.ToPin())
+	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Track")
+	defer span.End()
+	return rpcapi.c.tracker.Track(ctx, in.ToPin())
 }
 
 // Untrack runs PinTracker.Untrack().
 func (rpcapi *RPCAPI) Untrack(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Untrack")
+	defer span.End()
 	c := in.DecodeCid()
-	return rpcapi.c.tracker.Untrack(c)
+	return rpcapi.c.tracker.Untrack(ctx, c)
 }
 
 // TrackerStatusAll runs PinTracker.StatusAll().
 func (rpcapi *RPCAPI) TrackerStatusAll(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
-	*out = pinInfoSliceToSerial(rpcapi.c.tracker.StatusAll())
+	ctx, span := trace.StartSpan(ctx, "rpc/tracker/StatusAll")
+	defer span.End()
+	*out = pinInfoSliceToSerial(rpcapi.c.tracker.StatusAll(ctx))
 	return nil
 }
 
 // TrackerStatus runs PinTracker.Status().
 func (rpcapi *RPCAPI) TrackerStatus(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
+	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Status")
+	defer span.End()
 	c := in.DecodeCid()
-	pinfo := rpcapi.c.tracker.Status(c)
+	pinfo := rpcapi.c.tracker.Status(ctx, c)
 	*out = pinfo.ToSerial()
 	return nil
 }
 
 // TrackerRecoverAll runs PinTracker.RecoverAll().f
 func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
-	pinfos, err := rpcapi.c.tracker.RecoverAll()
+	ctx, span := trace.StartSpan(ctx, "rpc/tracker/RecoverAll")
+	defer span.End()
+	pinfos, err := rpcapi.c.tracker.RecoverAll(ctx)
 	*out = pinInfoSliceToSerial(pinfos)
 	return err
 }
 
 // TrackerRecover runs PinTracker.Recover().
 func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
+	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Recover")
+	defer span.End()
 	c := in.DecodeCid()
-	pinfo, err := rpcapi.c.tracker.Recover(c)
+	pinfo, err := rpcapi.c.tracker.Recover(ctx, c)
 	*out = pinfo.ToSerial()
 	return err
 }
@@ -287,6 +304,8 @@ func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out 
 
 // IPFSPin runs IPFSConnector.Pin().
 func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	ctx, span := trace.StartSpan(ctx, "rpc/ipfsconn/IPFSPin")
+	defer span.End()
 	c := in.DecodeCid()
 	depth := in.ToPin().MaxDepth
 	return rpcapi.c.ipfs.Pin(ctx, c, depth)
@@ -359,24 +378,32 @@ func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[
 
 // ConsensusLogPin runs Consensus.LogPin().
 func (rpcapi *RPCAPI) ConsensusLogPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	ctx, span := trace.StartSpan(ctx, "rpc/consensus/LogPin")
+	defer span.End()
 	c := in.ToPin()
-	return rpcapi.c.consensus.LogPin(c)
+	return rpcapi.c.consensus.LogPin(ctx, c)
 }
 
 // ConsensusLogUnpin runs Consensus.LogUnpin().
 func (rpcapi *RPCAPI) ConsensusLogUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	ctx, span := trace.StartSpan(ctx, "rpc/consensus/LogUnpin")
+	defer span.End()
 	c := in.ToPin()
-	return rpcapi.c.consensus.LogUnpin(c)
+	return rpcapi.c.consensus.LogUnpin(ctx, c)
 }
 
 // ConsensusAddPeer runs Consensus.AddPeer().
 func (rpcapi *RPCAPI) ConsensusAddPeer(ctx context.Context, in peer.ID, out *struct{}) error {
-	return rpcapi.c.consensus.AddPeer(in)
+	ctx, span := trace.StartSpan(ctx, "rpc/consensus/AddPeer")
+	defer span.End()
+	return rpcapi.c.consensus.AddPeer(ctx, in)
 }
 
 // ConsensusRmPeer runs Consensus.RmPeer().
 func (rpcapi *RPCAPI) ConsensusRmPeer(ctx context.Context, in peer.ID, out *struct{}) error {
-	return rpcapi.c.consensus.RmPeer(in)
+	ctx, span := trace.StartSpan(ctx, "rpc/consensus/RmPeer")
+	defer span.End()
+	return rpcapi.c.consensus.RmPeer(ctx, in)
 }
 
 // ConsensusPeers runs Consensus.Peers().

@@ -132,12 +132,13 @@ func TestPeerRm(t *testing.T) {
 }
 
 func TestPin(t *testing.T) {
+	ctx := context.Background()
 	api := testAPI(t)
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Pin(ci, 6, 7, "hello there")
+		err := c.Pin(ctx, ci, 6, 7, "hello there")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -425,6 +426,7 @@ func (wait *waitService) Status(ctx context.Context, in api.PinSerial, out *api.
 }
 
 func TestWaitFor(t *testing.T) {
+	ctx := context.Background()
 	tapi := testAPI(t)
 	defer shutdown(tapi)
 
@@ -469,7 +471,7 @@ func TestWaitFor(t *testing.T) {
 				}
 			}
 		}()
-		err := c.Pin(ci, 0, 0, "test")
+		err := c.Pin(ctx, ci, 0, 0, "test")
 		if err != nil {
 			t.Fatal(err)
 		}

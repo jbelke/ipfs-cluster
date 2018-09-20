@@ -39,11 +39,11 @@ type Consensus interface {
 	// allowing the main component to wait for it during start.
 	Ready() <-chan struct{}
 	// Logs a pin operation
-	LogPin(c api.Pin) error
+	LogPin(ctx context.Context, c api.Pin) error
 	// Logs an unpin operation
-	LogUnpin(c api.Pin) error
-	AddPeer(p peer.ID) error
-	RmPeer(p peer.ID) error
+	LogUnpin(ctx context.Context, c api.Pin) error
+	AddPeer(ctx context.Context, p peer.ID) error
+	RmPeer(ctx context.Context, p peer.ID) error
 	State() (state.State, error)
 	// Provide a node which is responsible to perform
 	// specific tasks which must only run in 1 cluster peer
@@ -104,24 +104,24 @@ type PinTracker interface {
 	Component
 	// Track tells the tracker that a Cid is now under its supervision
 	// The tracker may decide to perform an IPFS pin.
-	Track(api.Pin) error
+	Track(context.Context, api.Pin) error
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
-	Untrack(cid.Cid) error
+	Untrack(context.Context, cid.Cid) error
 	// StatusAll returns the list of pins with their local status.
-	StatusAll() []api.PinInfo
+	StatusAll(context.Context) []api.PinInfo
 	// Status returns the local status of a given Cid.
-	Status(cid.Cid) api.PinInfo
+	Status(context.Context, cid.Cid) api.PinInfo
 	// SyncAll makes sure that all tracked Cids reflect the real IPFS status.
 	// It returns the list of pins which were updated by the call.
-	SyncAll() ([]api.PinInfo, error)
+	SyncAll(context.Context) ([]api.PinInfo, error)
 	// Sync makes sure that the Cid status reflect the real IPFS status.
 	// It returns the local status of the Cid.
-	Sync(cid.Cid) (api.PinInfo, error)
+	Sync(context.Context, cid.Cid) (api.PinInfo, error)
 	// RecoverAll calls Recover() for all pins tracked.
-	RecoverAll() ([]api.PinInfo, error)
+	RecoverAll(context.Context) ([]api.PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
-	Recover(cid.Cid) (api.PinInfo, error)
+	Recover(context.Context, cid.Cid) (api.PinInfo, error)
 }
 
 // Informer provides Metric information from a peer. The metrics produced by

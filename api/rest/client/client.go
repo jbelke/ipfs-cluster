@@ -21,6 +21,9 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
+
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 )
 
 // Configuration defaults
@@ -290,8 +293,11 @@ func (c *defaultClient) setupHTTPClient() error {
 	}
 
 	c.client = &http.Client{
-		Transport: c.transport,
-		Timeout:   c.config.Timeout,
+		Transport: &ochttp.Transport{
+			Base:        c.transport,
+			Propagation: &tracecontext.HTTPFormat{},
+		},
+		Timeout: c.config.Timeout,
 	}
 	return nil
 }

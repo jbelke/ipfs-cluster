@@ -143,14 +143,14 @@ func TestUntrackTrack(t *testing.T) {
 	// LocalPin
 	c := api.PinWithOpts(h1, pinOpts)
 
-	err := spt.Track(c)
+	err := spt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(time.Second / 2)
 
-	err = spt.Untrack(h1)
+	err = spt.Untrack(context.Background(), h1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,27 +165,27 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	// LocalPin
 	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
 
-	err := spt.Track(slowPin)
+	err := spt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(100 * time.Millisecond) // let pinning start
 
-	pInfo := spt.optracker.Get(slowPin.Cid)
+	pInfo := spt.optracker.Get(context.Background(), slowPin.Cid)
 	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("slowPin should be tracked")
 	}
 
 	if pInfo.Status == api.TrackerStatusPinning {
 		go func() {
-			err = spt.Untrack(slowPinCid)
+			err = spt.Untrack(context.Background(), slowPinCid)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}()
 		select {
-		case <-spt.optracker.OpContext(slowPinCid).Done():
+		case <-spt.optracker.OpContext(context.Background(), slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
@@ -213,7 +213,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	// LocalPin
 	fastPin := api.PinWithOpts(fastPinCid, pinOpts)
 
-	err := spt.Track(slowPin)
+	err := spt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,18 +221,18 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	// Otherwise fails when running with -race
 	time.Sleep(300 * time.Millisecond)
 
-	err = spt.Track(fastPin)
+	err = spt.Track(context.Background(), fastPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// fastPin should be queued because slow pin is pinning
-	fastPInfo := spt.optracker.Get(fastPin.Cid)
+	fastPInfo := spt.optracker.Get(context.Background(), fastPin.Cid)
 	if fastPInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("fastPin should be tracked")
 	}
 	if fastPInfo.Status == api.TrackerStatusPinQueued {
-		err = spt.Untrack(fastPinCid)
+		err = spt.Untrack(context.Background(), fastPinCid)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -244,7 +244,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		t.Errorf("fastPin should be queued to pin but is %s", fastPInfo.Status)
 	}
 
-	pi := spt.optracker.Get(fastPin.Cid)
+	pi := spt.optracker.Get(context.Background(), fastPin.Cid)
 	if pi.Cid == cid.Undef {
 		t.Error("fastPin should have been removed from tracker")
 	}
@@ -259,7 +259,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	// LocalPin
 	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
 
-	err := spt.Track(slowPin)
+	err := spt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,27 +268,27 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 
 	// Untrack should cancel the ongoing request
 	// and unpin right away
-	err = spt.Untrack(slowPinCid)
+	err = spt.Untrack(context.Background(), slowPinCid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 
-	pi := spt.optracker.Get(slowPin.Cid)
+	pi := spt.optracker.Get(context.Background(), slowPin.Cid)
 	if pi.Cid == cid.Undef {
 		t.Fatal("expected slowPin to be tracked")
 	}
 
 	if pi.Status == api.TrackerStatusUnpinning {
 		go func() {
-			err = spt.Track(slowPin)
+			err = spt.Track(context.Background(), slowPin)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}()
 		select {
-		case <-spt.optracker.OpContext(slowPinCid).Done():
+		case <-spt.optracker.OpContext(context.Background(), slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
@@ -312,35 +312,35 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	// LocalPin
 	fastPin := api.PinWithOpts(fastPinCid, pinOpts)
 
-	err := spt.Track(slowPin)
+	err := spt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = spt.Track(fastPin)
+	err = spt.Track(context.Background(), fastPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(3 * time.Second)
 
-	err = spt.Untrack(slowPin.Cid)
+	err = spt.Untrack(context.Background(), slowPin.Cid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = spt.Untrack(fastPin.Cid)
+	err = spt.Untrack(context.Background(), fastPin.Cid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pi := spt.optracker.Get(fastPin.Cid)
+	pi := spt.optracker.Get(context.Background(), fastPin.Cid)
 	if pi.Cid == cid.Undef {
 		t.Fatal("c untrack operation should be tracked")
 	}
 
 	if pi.Status == api.TrackerStatusUnpinQueued {
-		err = spt.Track(fastPin)
+		err = spt.Track(context.Background(), fastPin)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -416,7 +416,7 @@ func TestStatelessTracker_SyncAll(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.args.tracker.SyncAll()
+			got, err := tt.args.tracker.SyncAll(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.SyncAll() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -427,14 +427,14 @@ func TestStatelessTracker_SyncAll(t *testing.T) {
 			}
 
 			for _, c := range tt.args.cs {
-				err := tt.args.tracker.Track(api.PinWithOpts(c, pinOpts))
+				err := tt.args.tracker.Track(context.Background(), api.PinWithOpts(c, pinOpts))
 				if err != nil {
 					t.Fatal(err)
 				}
-				tt.args.tracker.optracker.SetError(c, errors.New("test error"))
+				tt.args.tracker.optracker.SetError(context.Background(), c, errors.New("test error"))
 			}
 
-			got, err = tt.args.tracker.SyncAll()
+			got, err = tt.args.tracker.SyncAll(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.SyncAll() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -460,6 +460,6 @@ func BenchmarkTracker_localStatus(b *testing.B) {
 	tracker := testStatelessPinTracker(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tracker.localStatus(true)
+		tracker.localStatus(context.Background(), true)
 	}
 }
