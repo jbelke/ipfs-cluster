@@ -16,12 +16,14 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	"github.com/urfave/cli"
 
-	prom "github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/exporter/jaeger"
 	"go.opencensus.io/exporter/prometheus"
+	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 	"go.opencensus.io/zpages"
+
+	prom "github.com/prometheus/client_golang/prometheus"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
@@ -59,9 +61,6 @@ func daemon(c *cli.Context) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	ctx, span := trace.StartSpan(ctx, "daemon")
-	defer span.End()
 
 	// Load all the configurations
 	cfgMgr, cfgs := makeConfigs()
@@ -118,9 +117,6 @@ func createCluster(
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
-	ctx, span := trace.StartSpan(ctx, "createCluster")
-	defer span.End()
-
 	host, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
 
@@ -174,9 +170,6 @@ func createCluster(
 // bootstrap will bootstrap this peer to one of the bootstrap addresses
 // if there are any.
 func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []ma.Multiaddr) {
-	ctx, span := trace.StartSpan(ctx, "bootstrap")
-	defer span.End()
-
 	for _, bstrap := range bootstraps {
 		logger.Infof("Bootstrapping to %s", bstrap)
 		err := cluster.Join(bstrap)
@@ -187,9 +180,6 @@ func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []m
 }
 
 func handleSignals(ctx context.Context, cluster *ipfscluster.Cluster) error {
-	ctx, span := trace.StartSpan(ctx, "handleSignals")
-	defer span.End()
-
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
 		signalChan,
@@ -308,14 +298,25 @@ func setupPinTracker(
 	}
 }
 
-func setupTracing() {
-	agentEndpointURI := "localhost:6831"
-	collectorEndpointURI := "http://localhost:14268"
+func setupTracing(config tracingConfig) {
+	if !config.Enable {
+		return
+	}
+
+	agentEndpointURI := "0.0.0.0:6831"
+	collectorEndpointURI := "http://0.0.0.0:14268"
+
+	if config.JaegerAgentEndpoint != "" {
+		agentEndpointURI = config.JaegerAgentEndpoint
+	}
+	if config.JaegerCollectorEndpoint != "" {
+		collectorEndpointURI = config.JaegerCollectorEndpoint
+	}
 
 	je, err := jaeger.NewExporter(jaeger.Options{
 		AgentEndpoint: agentEndpointURI,
 		Endpoint:      collectorEndpointURI,
-		ServiceName:   "cluster",
+		ServiceName:   "ipfs-cluster-service-daemon",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create the Jaeger exporter: %v", err)
@@ -346,6 +347,9 @@ func setupMetrics() {
 		log.Fatalf("failed to register views: %v", err)
 	}
 	if err := view.Register(gorpc.DefaultViews...); err != nil {
+		log.Fatalf("failed to register views: %v", err)
+	}
+	if err := view.Register(ochttp.DefaultServerViews...); err != nil {
 		log.Fatalf("failed to register views: %v", err)
 	}
 

@@ -154,7 +154,7 @@ func checkErr(doing string, err error, args ...interface{}) {
 }
 
 func main() {
-	setupTracing()
+	setupTracing(newTracingConfig())
 	setupMetrics()
 
 	app := cli.NewApp()

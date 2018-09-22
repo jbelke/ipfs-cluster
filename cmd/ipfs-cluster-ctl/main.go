@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -15,6 +16,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 	uuid "github.com/satori/go.uuid"
+	"go.opencensus.io/exporter/jaeger"
+	"go.opencensus.io/trace"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -81,7 +84,13 @@ func checkErr(doing string, err error) {
 	}
 }
 
+func init() {
+	setupTracing(newTracingConfig())
+}
+
 func main() {
+	ctx := context.Background()
+
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "CLI for IPFS Cluster"
@@ -491,6 +500,7 @@ peers should pin this content.
 						},
 					},
 					Action: func(c *cli.Context) error {
+
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
@@ -503,7 +513,7 @@ peers should pin this content.
 							rplMax = rpl
 						}
 
-						cerr := globalClient.Pin(ci, rplMin, rplMax, c.String("name"))
+						cerr := globalClient.Pin(ctx, ci, rplMin, rplMax, c.String("name"))
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
@@ -545,10 +555,11 @@ although unpinning operations in the cluster may take longer or fail.
 						},
 					},
 					Action: func(c *cli.Context) error {
+
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						cerr := globalClient.Unpin(ci)
+						cerr := globalClient.Unpin(ctx, ci)
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
@@ -952,4 +963,34 @@ func waitFor(
 	}
 
 	return client.WaitFor(ctx, globalClient, fp)
+}
+
+func setupTracing(config tracingConfig) {
+	if !config.Enable {
+		return
+	}
+
+	agentEndpointURI := "0.0.0.0:6831"
+	collectorEndpointURI := "http://0.0.0.0:14268"
+
+	if config.JaegerAgentEndpoint != "" {
+		agentEndpointURI = config.JaegerAgentEndpoint
+	}
+	if config.JaegerCollectorEndpoint != "" {
+		collectorEndpointURI = config.JaegerCollectorEndpoint
+	}
+
+	je, err := jaeger.NewExporter(jaeger.Options{
+		AgentEndpoint: agentEndpointURI,
+		Endpoint:      collectorEndpointURI,
+		ServiceName:   "ipfs-cluster-ctl",
+	})
+	if err != nil {
+		log.Fatalf("Failed to create the Jaeger exporter: %v", err)
+	}
+	// Register/enable the trace exporter
+	trace.RegisterExporter(je)
+
+	// For demo purposes, set the trace sampling probability to be high
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
 }

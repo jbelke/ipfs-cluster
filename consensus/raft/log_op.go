@@ -1,10 +1,13 @@
 package raft
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
+	"go.opencensus.io/tag"
+	"go.opencensus.io/trace"
 
 	consensus "github.com/libp2p/go-libp2p-consensus"
 )
@@ -22,6 +25,8 @@ type LogOpType int
 // It implements the consensus.Op interface and it is used by the
 // Consensus component.
 type LogOp struct {
+	SpanCtx   trace.SpanContext
+	TagCtx    []byte
 	Cid       api.PinSerial
 	Type      LogOpType
 	consensus *Consensus
@@ -29,8 +34,16 @@ type LogOp struct {
 
 // ApplyTo applies the operation to the State
 func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
+	tagmap, err := tag.Decode(op.TagCtx)
+	if err != nil {
+		logger.Error(err)
+	}
+	ctx := tag.NewContext(context.Background(), tagmap)
+	var span *trace.Span
+	ctx, span = trace.StartSpanWithRemoteParent(ctx, "consensus/raft/logop/ApplyTo", op.SpanCtx)
+	defer span.End()
+
 	state, ok := cstate.(state.State)
-	var err error
 	if !ok {
 		// Should never be here
 		panic("received unexpected state type")
@@ -50,7 +63,8 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go(
+		op.consensus.rpcClient.GoContext(
+			ctx,
 			"",
 			"Cluster",
 			"Track",
@@ -64,7 +78,8 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go(
+		op.consensus.rpcClient.GoContext(
+			ctx,
 			"",
 			"Cluster",
 			"Untrack",

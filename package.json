@@ -56,12 +56,6 @@
       "version": "3.0.4"
     },
     {
-      "author": "ZenGround0",
-      "hash": "QmPuuqyMyoadGDkefg7L11kAwmvQykrHiRkuLjQRpa1bqF",
-      "name": "go-dot",
-      "version": "0.0.1"
-    },
-    {
       "author": "dignifiedquire",
       "hash": "Qmctxy7Q5h5ohCy8TwxrqWCrDY36MNkN71hPozExc4Yxem",
       "name": "go-fs-lock",
@@ -161,6 +155,12 @@
       "hash": "QmNNk4iczWp8Q4R1mXQ2mrrjQvWisYqMqbW1an8qGbJZsM",
       "name": "cors",
       "version": "1.6.0"
+    },
+    {
+      "author": "ZenGround0",
+      "hash": "QmPuuqyMyoadGDkefg7L11kAwmvQykrHiRkuLjQRpa1bqF",
+      "name": "go-dot",
+      "version": "0.0.1"
     }
   ],
   "gxVersion": "0.11.0",

@@ -241,12 +241,11 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 // Pin performs a pin request against the configured IPFS
 // daemon.
 func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) error {
-	ctx, span := trace.StartSpan(ctx, "pin")
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/Pin")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.PinTimeout)
 	defer cancel()
-
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
@@ -291,6 +290,9 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
 func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/Unpin")
+	defer span.End()
+
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
 	defer cancel()
 
@@ -301,7 +303,7 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 	if pinStatus.IsPinned(-1) {
 		defer ipfs.updateInformerMetric()
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
-		_, err := ipfs.postCtx(ctx, path)
+		_, err := ipfs.postCtx(ctx, path, "", nil)
 		if err != nil {
 			return err
 		}

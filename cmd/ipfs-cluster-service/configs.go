@@ -32,6 +32,26 @@ type cfgs struct {
 	numpinInfCfg        *numpin.Config
 }
 
+type tracingConfig struct {
+	Enable                  bool
+	JaegerAgentEndpoint     string
+	JaegerCollectorEndpoint string
+}
+
+func newTracingConfig() tracingConfig {
+	enablestr := os.Getenv("ENABLE_TRACING")
+	var enable bool
+	if enablestr == "" {
+		enable = false
+	}
+	enable = true
+	return tracingConfig{
+		Enable:                  enable,
+		JaegerAgentEndpoint:     os.Getenv("JAEGER_AGENT_ENDPOINT"),
+		JaegerCollectorEndpoint: os.Getenv("JAEGER_COLLECTOR_ENDPOINT"),
+	}
+}
+
 func makeConfigs() (*config.Manager, *cfgs) {
 	cfg := config.NewManager()
 	clusterCfg := &ipfscluster.Config{}

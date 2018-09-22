@@ -17,6 +17,11 @@ var (
 	bytesDistribution = view.Distribution(0, 24, 32, 64, 128, 256, 512, 1024, 2048, 4096, 16384, 65536, 262144, 1048576)
 )
 
+// opencensus attributes
+var (
+	ClientIPAttribute = "http.client.ip"
+)
+
 // opencensus keys
 var (
 	HostKey = makeKey("host")

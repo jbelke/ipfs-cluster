@@ -12,6 +12,8 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
+	"go.opencensus.io/tag"
+	"go.opencensus.io/trace"
 
 	logging "github.com/ipfs/go-log"
 	consensus "github.com/libp2p/go-libp2p-consensus"
@@ -203,7 +205,7 @@ func (cc *Consensus) Ready() <-chan struct{} {
 	return cc.readyCh
 }
 
-func (cc *Consensus) op(pin api.Pin, t LogOpType) *LogOp {
+func (cc *Consensus) op(ctx context.Context, pin api.Pin, t LogOpType) *LogOp {
 	return &LogOp{
 		Cid:  pin.ToSerial(),
 		Type: t,
@@ -267,7 +269,19 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 }
 
 // commit submits a cc.consensus commit. It retries upon failures.
-func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) error {
+func (cc *Consensus) commit(ctx context.Context, op *LogOp, rpcOp string, redirectArg interface{}) error {
+	var span *trace.Span
+	ctx, span = trace.StartSpan(ctx, "consensus/raft/commit")
+	defer span.End()
+
+	// required to cross the serialized boundary
+	op.SpanCtx = span.SpanContext()
+	tagmap := tag.FromContext(ctx)
+	if tagmap != nil {
+		logger.Errorf("tagmap: %v", tagmap)
+		op.TagCtx = tag.Encode(tagmap)
+	}
+
 	var finalErr error
 	for i := 0; i <= cc.config.CommitRetries; i++ {
 		logger.Debugf("attempt #%d: committing %+v", i, op)
@@ -312,9 +326,12 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
-func (cc *Consensus) LogPin(pin api.Pin) error {
-	op := cc.op(pin, LogOpPin)
-	err := cc.commit(op, "ConsensusLogPin", pin.ToSerial())
+func (cc *Consensus) LogPin(ctx context.Context, pin api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/LogPin")
+	defer span.End()
+
+	op := cc.op(ctx, pin, LogOpPin)
+	err := cc.commit(ctx, op, "ConsensusLogPin", pin.ToSerial())
 	if err != nil {
 		return err
 	}
@@ -322,9 +339,12 @@ func (cc *Consensus) LogPin(pin api.Pin) error {
 }
 
 // LogUnpin removes a Cid from the shared state of the cluster.
-func (cc *Consensus) LogUnpin(pin api.Pin) error {
-	op := cc.op(pin, LogOpUnpin)
-	err := cc.commit(op, "ConsensusLogUnpin", pin.ToSerial())
+func (cc *Consensus) LogUnpin(ctx context.Context, pin api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/LogUnpin")
+	defer span.End()
+
+	op := cc.op(ctx, pin, LogOpUnpin)
+	err := cc.commit(ctx, op, "ConsensusLogUnpin", pin.ToSerial())
 	if err != nil {
 		return err
 	}
@@ -333,7 +353,7 @@ func (cc *Consensus) LogUnpin(pin api.Pin) error {
 
 // AddPeer adds a new peer to participate in this consensus. It will
 // forward the operation to the leader if this is not it.
-func (cc *Consensus) AddPeer(pid peer.ID) error {
+func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 	var finalErr error
 	for i := 0; i <= cc.config.CommitRetries; i++ {
 		logger.Debugf("attempt #%d: AddPeer %s", i, pid.Pretty())
@@ -360,7 +380,7 @@ func (cc *Consensus) AddPeer(pid peer.ID) error {
 
 // RmPeer removes a peer from this consensus. It will
 // forward the operation to the leader if this is not it.
-func (cc *Consensus) RmPeer(pid peer.ID) error {
+func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 	var finalErr error
 	for i := 0; i <= cc.config.CommitRetries; i++ {
 		logger.Debugf("attempt #%d: RmPeer %s", i, pid.Pretty())
