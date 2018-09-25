@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/api"
-	"go.opencensus.io/trace"
 )
 
 type responseDecoder func(d *json.Decoder) error

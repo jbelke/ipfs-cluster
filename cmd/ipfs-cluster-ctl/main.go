@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gxed/opencensus-go/exporter/jaeger"
+	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 	uuid "github.com/satori/go.uuid"
-	"go.opencensus.io/exporter/jaeger"
-	"go.opencensus.io/trace"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"

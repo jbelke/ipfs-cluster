@@ -16,14 +16,14 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	"github.com/urfave/cli"
 
-	"go.opencensus.io/exporter/jaeger"
-	"go.opencensus.io/exporter/prometheus"
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
-	"go.opencensus.io/zpages"
+	"github.com/gxed/opencensus-go/exporter/jaeger"
+	"github.com/gxed/opencensus-go/exporter/prometheus"
+	"github.com/gxed/opencensus-go/plugin/ochttp"
+	"github.com/gxed/opencensus-go/stats/view"
+	"github.com/gxed/opencensus-go/trace"
+	"github.com/gxed/opencensus-go/zpages"
 
-	prom "github.com/prometheus/client_golang/prometheus"
+	prom "github.com/gxed/client_golang/prometheus"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"

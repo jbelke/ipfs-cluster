@@ -148,12 +148,13 @@ func TestPin(t *testing.T) {
 }
 
 func TestUnpin(t *testing.T) {
+	ctx := context.Background()
 	api := testAPI(t)
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Unpin(ci)
+		err := c.Unpin(ctx, ci)
 		if err != nil {
 			t.Fatal(err)
 		}

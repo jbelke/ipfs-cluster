@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gxed/opencensus-go/stats"
-	"github.com/gxed/opencensus-go/tag"
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"

@@ -5,8 +5,8 @@ import (
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
+	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/api"
-	"go.opencensus.io/trace"
 )
 
 // RPCAPI is a go-libp2p-gorpc service which provides the internal ipfs-cluster

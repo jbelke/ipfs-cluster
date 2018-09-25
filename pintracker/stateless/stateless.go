@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
-	"go.opencensus.io/trace"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"

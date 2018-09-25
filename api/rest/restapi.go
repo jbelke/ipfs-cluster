@@ -23,11 +23,11 @@ import (
 
 	"github.com/rs/cors"
 
+	"github.com/gxed/opencensus-go/plugin/ochttp"
+	"github.com/gxed/opencensus-go/plugin/ochttp/propagation/tracecontext"
+	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
-	"go.opencensus.io/trace"
 
 	mux "github.com/gorilla/mux"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
