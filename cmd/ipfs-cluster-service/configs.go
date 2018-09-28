@@ -44,11 +44,27 @@ func newTracingConfig() tracingConfig {
 	if enablestr == "" {
 		enable = false
 	}
-	enable = true
 	return tracingConfig{
 		Enable:                  enable,
 		JaegerAgentEndpoint:     os.Getenv("JAEGER_AGENT_ENDPOINT"),
 		JaegerCollectorEndpoint: os.Getenv("JAEGER_COLLECTOR_ENDPOINT"),
+	}
+}
+
+type metricsConfig struct {
+	Enable             bool
+	PrometheusEndpoint string
+}
+
+func newMetricsConfig() metricsConfig {
+	enablestr := os.Getenv("ENABLE_METRICS")
+	var enable bool
+	if enablestr == "" {
+		enable = false
+	}
+	return metricsConfig{
+		Enable:             enable,
+		PrometheusEndpoint: os.Getenv("PROMETHEUS_ENDPOINT"),
 	}
 }
 

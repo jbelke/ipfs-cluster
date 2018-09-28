@@ -15,6 +15,7 @@ import (
 
 	"github.com/gxed/opencensus-go/exporter/jaeger"
 	"github.com/gxed/opencensus-go/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 	uuid "github.com/satori/go.uuid"
@@ -981,9 +982,9 @@ func setupTracing(config tracingConfig) {
 	}
 
 	je, err := jaeger.NewExporter(jaeger.Options{
-		AgentEndpoint: agentEndpointURI,
-		Endpoint:      collectorEndpointURI,
-		ServiceName:   "ipfs-cluster-ctl",
+		AgentEndpoint:     agentEndpointURI,
+		CollectorEndpoint: collectorEndpointURI,
+		ServiceName:       "ipfs-cluster-ctl",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create the Jaeger exporter: %v", err)

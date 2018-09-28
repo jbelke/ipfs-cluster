@@ -314,9 +314,9 @@ func setupTracing(config tracingConfig) {
 	}
 
 	je, err := jaeger.NewExporter(jaeger.Options{
-		AgentEndpoint: agentEndpointURI,
-		Endpoint:      collectorEndpointURI,
-		ServiceName:   "ipfs-cluster-service-daemon",
+		AgentEndpoint:     agentEndpointURI,
+		CollectorEndpoint: collectorEndpointURI,
+		ServiceName:       "ipfs-cluster-service-daemon",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create the Jaeger exporter: %v", err)
@@ -328,7 +328,16 @@ func setupTracing(config tracingConfig) {
 	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
 }
 
-func setupMetrics() {
+func setupMetrics(config metricsConfig) {
+	if !config.Enable {
+		return
+	}
+
+	prometheusEndpoint := ":8888"
+	if config.PrometheusEndpoint != "" {
+		prometheusEndpoint = config.PrometheusEndpoint
+	}
+
 	registry := prom.NewRegistry()
 	goCollector := prom.NewGoCollector()
 	procCollector := prom.NewProcessCollector(os.Getpid(), "")
@@ -370,7 +379,7 @@ func setupMetrics() {
 		mux.Handle("/debug/heap", pprof.Handler("heap"))
 		mux.Handle("/debug/mutex", pprof.Handler("mutex"))
 		mux.Handle("/debug/threadcreate", pprof.Handler("threadcreate"))
-		if err := http.ListenAndServe(":8888", mux); err != nil {
+		if err := http.ListenAndServe(prometheusEndpoint, mux); err != nil {
 			log.Fatalf("Failed to run Prometheus /metrics endpoint: %v", err)
 		}
 	}()
