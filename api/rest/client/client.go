@@ -59,9 +59,9 @@ type Client interface {
 
 	// Pin tracks a Cid with the given replication factor and a name for
 	// human-friendliness.
-	Pin(ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error
+	Pin(ctx context.Context, ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error
 	// Unpin untracks a Cid from cluster.
-	Unpin(ci cid.Cid) error
+	Unpin(ctx context.Context, ci cid.Cid) error
 
 	// Allocations returns the consensus state listing all tracked items
 	// and the peers that should be pinning them.
