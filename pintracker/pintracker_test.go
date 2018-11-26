@@ -986,6 +986,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 }
 
 func TestPinTracker_RemoteIgnoresError(t *testing.T) {
+	ctx := context.Background()
 	testF := func(t *testing.T, pt ipfscluster.PinTracker) {
 		remoteCid := test.MustDecodeCid(test.TestCid4)
 
@@ -994,14 +995,14 @@ func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 		remote.ReplicationFactorMin = 1
 		remote.ReplicationFactorMax = 1
 
-		err := pt.Track(remote)
+		err := pt.Track(ctx, remote)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// Sync triggers IPFSPinLs which will return an error
 		// (see mock)
-		pi, err := pt.Sync(remoteCid)
+		pi, err := pt.Sync(ctx, remoteCid)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1010,7 +1011,7 @@ func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 			t.Error("Remote pin should not be in error")
 		}
 
-		pi = pt.Status(remoteCid)
+		pi = pt.Status(ctx, remoteCid)
 		if err != nil {
 			t.Fatal(err)
 		}

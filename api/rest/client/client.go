@@ -23,7 +23,7 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 
 	"github.com/gxed/opencensus-go/plugin/ochttp"
-	"github.com/gxed/opencensus-go/plugin/ochttp/propagation/tracecontext"
+	"github.com/gxed/opencensus-go/trace"
 )
 
 // Configuration defaults
@@ -43,19 +43,19 @@ var logger = logging.Logger(loggingFacility)
 // interact with the ipfs-cluster-service
 type Client interface {
 	// ID returns information about the cluster Peer.
-	ID() (api.ID, error)
+	ID(context.Context) (api.ID, error)
 
 	// Peers requests ID information for all cluster peers.
-	Peers() ([]api.ID, error)
+	Peers(context.Context) ([]api.ID, error)
 	// PeerAdd adds a new peer to the cluster.
-	PeerAdd(pid peer.ID) (api.ID, error)
+	PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error)
 	// PeerRm removes a current peer from the cluster
-	PeerRm(pid peer.ID) error
+	PeerRm(ctx context.Context, pid peer.ID) error
 
 	// Add imports files to the cluster from the given paths.
-	Add(paths []string, params *api.AddParams, out chan<- *api.AddedOutput) error
+	Add(ctx context.Context, paths []string, params *api.AddParams, out chan<- *api.AddedOutput) error
 	// AddMultiFile imports new files from a MultiFileReader.
-	AddMultiFile(multiFileR *files.MultiFileReader, params *api.AddParams, out chan<- *api.AddedOutput) error
+	AddMultiFile(ctx context.Context, multiFileR *files.MultiFileReader, params *api.AddParams, out chan<- *api.AddedOutput) error
 
 	// Pin tracks a Cid with the given replication factor and a name for
 	// human-friendliness.
@@ -65,51 +65,51 @@ type Client interface {
 
 	// Allocations returns the consensus state listing all tracked items
 	// and the peers that should be pinning them.
-	Allocations(filter api.PinType) ([]api.Pin, error)
+	Allocations(ctx context.Context, filter api.PinType) ([]api.Pin, error)
 	// Allocation returns the current allocations for a given Cid.
-	Allocation(ci cid.Cid) (api.Pin, error)
+	Allocation(ctx context.Context, ci cid.Cid) (api.Pin, error)
 
 	// Status returns the current ipfs state for a given Cid. If local is true,
 	// the information affects only the current peer, otherwise the information
 	// is fetched from all cluster peers.
-	Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Status(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// StatusAll gathers Status() for all tracked items.
-	StatusAll(filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error)
+	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error)
 
 	// Sync makes sure the state of a Cid corresponds to the state reported
 	// by the ipfs daemon, and returns it. If local is true, this operation
 	// only happens on the current peer, otherwise it happens on every
 	// cluster peer.
-	Sync(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Sync(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// SyncAll triggers Sync() operations for all tracked items. It only
 	// returns informations for items that were de-synced or have an error
 	// state. If local is true, the operation is limited to the current
 	// peer. Otherwise it happens on every cluster peer.
-	SyncAll(local bool) ([]api.GlobalPinInfo, error)
+	SyncAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error)
 
 	// Recover retriggers pin or unpin ipfs operations for a Cid in error
 	// state.  If local is true, the operation is limited to the current
 	// peer, otherwise it happens on every cluster peer.
-	Recover(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Recover(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// RecoverAll triggers Recover() operations on all tracked items. If
 	// local is true, the operation is limited to the current peer.
 	// Otherwise, it happens everywhere.
-	RecoverAll(local bool) ([]api.GlobalPinInfo, error)
+	RecoverAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error)
 
 	// Version returns the ipfs-cluster peer's version.
-	Version() (api.Version, error)
+	Version(context.Context) (api.Version, error)
 
 	// IPFS returns an instance of go-ipfs-api's Shell, pointing to a
 	// Cluster's IPFS proxy endpoint.
-	IPFS() *shell.Shell
+	IPFS(context.Context) *shell.Shell
 
 	// GetConnectGraph returns an ipfs-cluster connection graph.  The
 	// serialized version, strings instead of pids, is returned
-	GetConnectGraph() (api.ConnectGraphSerial, error)
+	GetConnectGraph(context.Context) (api.ConnectGraphSerial, error)
 
 	// Metrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
-	Metrics(name string) ([]api.Metric, error)
+	Metrics(ctx context.Context, name string) ([]api.Metric, error)
 }
 
 // Config allows to configure the parameters to connect
@@ -294,8 +294,11 @@ func (c *defaultClient) setupHTTPClient() error {
 
 	c.client = &http.Client{
 		Transport: &ochttp.Transport{
-			Base:        c.transport,
-			Propagation: &tracecontext.HTTPFormat{},
+			Base: c.transport,
+			// Propagation:    &tracecontext.HTTPFormat{},
+			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindClient},
+			FormatSpanName: func(req *http.Request) string { return "client::" + req.URL.Path },
+			NewClientTrace: ochttp.NewSpanAnnotatingClientTrace,
 		},
 		Timeout: c.config.Timeout,
 	}
@@ -334,7 +337,7 @@ func (c *defaultClient) setupProxy() error {
 // configured ProxyAddr (or to the default Cluster's IPFS proxy port).
 // It re-uses this Client's HTTP client, thus will be constrained by
 // the same configurations affecting it (timeouts...).
-func (c *defaultClient) IPFS() *shell.Shell {
+func (c *defaultClient) IPFS(ctx context.Context) *shell.Shell {
 	return shell.NewShellWithClient(c.config.ProxyAddr.String(), c.client)
 }
 

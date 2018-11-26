@@ -3,27 +3,13 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"expvar"
-	"net/http/pprof"
-
 	host "github.com/libp2p/go-libp2p-host"
 	"github.com/urfave/cli"
-
-	"github.com/gxed/opencensus-go/exporter/jaeger"
-	"github.com/gxed/opencensus-go/exporter/prometheus"
-	"github.com/gxed/opencensus-go/plugin/ochttp"
-	"github.com/gxed/opencensus-go/stats/view"
-	"github.com/gxed/opencensus-go/trace"
-	"github.com/gxed/opencensus-go/zpages"
-
-	prom "github.com/gxed/client_golang/prometheus"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
@@ -34,15 +20,14 @@ import (
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/metrics"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
+	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
-	gorpc "github.com/hsanjuan/go-libp2p-gorpc"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -67,7 +52,7 @@ func daemon(c *cli.Context) error {
 
 	// Run any migrations
 	if c.Bool("upgrade") {
-		err := upgrade()
+		err := upgrade(ctx)
 		if err != errNoSnapshot {
 			checkErr("upgrading state", err)
 		} // otherwise continue
@@ -117,6 +102,7 @@ func createCluster(
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
+	observations.Setup(cfgs.obsCfg)
 	host, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
 
@@ -136,7 +122,7 @@ func createCluster(
 
 	state := mapstate.NewMapState()
 
-	err = validateVersion(cfgs.clusterCfg, cfgs.consensusCfg)
+	err = validateVersion(ctx, cfgs.clusterCfg, cfgs.consensusCfg)
 	checkErr("validating version", err)
 
 	raftcon, err := raft.NewConsensus(
@@ -172,7 +158,7 @@ func createCluster(
 func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []ma.Multiaddr) {
 	for _, bstrap := range bootstraps {
 		logger.Infof("Bootstrapping to %s", bstrap)
-		err := cluster.Join(bstrap)
+		err := cluster.Join(ctx, bstrap)
 		if err != nil {
 			logger.Errorf("bootstrap to %s failed: %s", bstrap, err)
 		}
@@ -193,18 +179,18 @@ func handleSignals(ctx context.Context, cluster *ipfscluster.Cluster) error {
 		select {
 		case <-signalChan:
 			ctrlcCount++
-			handleCtrlC(cluster, ctrlcCount)
+			handleCtrlC(ctx, cluster, ctrlcCount)
 		case <-cluster.Done():
 			return nil
 		}
 	}
 }
 
-func handleCtrlC(cluster *ipfscluster.Cluster, ctrlcCount int) {
+func handleCtrlC(ctx context.Context, cluster *ipfscluster.Cluster, ctrlcCount int) {
 	switch ctrlcCount {
 	case 1:
 		go func() {
-			err := cluster.Shutdown()
+			err := cluster.Shutdown(ctx)
 			checkErr("shutting down cluster", err)
 		}()
 	case 2:
@@ -296,91 +282,4 @@ func setupPinTracker(
 		checkErr("", err)
 		return nil
 	}
-}
-
-func setupTracing(config tracingConfig) {
-	if !config.Enable {
-		return
-	}
-
-	agentEndpointURI := "0.0.0.0:6831"
-	collectorEndpointURI := "http://0.0.0.0:14268"
-
-	if config.JaegerAgentEndpoint != "" {
-		agentEndpointURI = config.JaegerAgentEndpoint
-	}
-	if config.JaegerCollectorEndpoint != "" {
-		collectorEndpointURI = config.JaegerCollectorEndpoint
-	}
-
-	je, err := jaeger.NewExporter(jaeger.Options{
-		AgentEndpoint:     agentEndpointURI,
-		CollectorEndpoint: collectorEndpointURI,
-		ServiceName:       "ipfs-cluster-service-daemon",
-	})
-	if err != nil {
-		log.Fatalf("Failed to create the Jaeger exporter: %v", err)
-	}
-	// Register/enable the trace exporter
-	trace.RegisterExporter(je)
-
-	// For demo purposes, set the trace sampling probability to be high
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
-}
-
-func setupMetrics(config metricsConfig) {
-	if !config.Enable {
-		return
-	}
-
-	prometheusEndpoint := ":8888"
-	if config.PrometheusEndpoint != "" {
-		prometheusEndpoint = config.PrometheusEndpoint
-	}
-
-	registry := prom.NewRegistry()
-	goCollector := prom.NewGoCollector()
-	procCollector := prom.NewProcessCollector(os.Getpid(), "")
-	registry.MustRegister(goCollector, procCollector)
-	pe, err := prometheus.NewExporter(prometheus.Options{
-		Namespace: "cluster",
-		Registry:  registry,
-	})
-	if err != nil {
-		log.Fatalf("Failed to create Prometheus exporter: %v", err)
-	}
-
-	view.RegisterExporter(pe)
-
-	if err := view.Register(metrics.DefaultViews...); err != nil {
-		log.Fatalf("failed to register views: %v", err)
-	}
-	if err := view.Register(gorpc.DefaultViews...); err != nil {
-		log.Fatalf("failed to register views: %v", err)
-	}
-	if err := view.Register(ochttp.DefaultServerViews...); err != nil {
-		log.Fatalf("failed to register views: %v", err)
-	}
-
-	view.SetReportingPeriod(2 * time.Second)
-
-	go func() {
-		mux := http.NewServeMux()
-		zpages.Handle(mux, "/debug")
-		mux.Handle("/metrics", pe)
-		mux.Handle("/debug/vars", expvar.Handler())
-		mux.HandleFunc("/debug/pprof", pprof.Index)
-		mux.HandleFunc("/debug/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/profile", pprof.Profile)
-		mux.HandleFunc("/debug/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/trace", pprof.Trace)
-		mux.Handle("/debug/block", pprof.Handler("block"))
-		mux.Handle("/debug/goroutine", pprof.Handler("goroutine"))
-		mux.Handle("/debug/heap", pprof.Handler("heap"))
-		mux.Handle("/debug/mutex", pprof.Handler("mutex"))
-		mux.Handle("/debug/threadcreate", pprof.Handler("threadcreate"))
-		if err := http.ListenAndServe(prometheusEndpoint, mux); err != nil {
-			log.Fatalf("Failed to run Prometheus /metrics endpoint: %v", err)
-		}
-	}()
 }

@@ -6,6 +6,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/gxed/opencensus-go/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
@@ -26,29 +27,25 @@ type RPCAPI struct {
 
 // ID runs Cluster.ID()
 func (rpcapi *RPCAPI) ID(ctx context.Context, in struct{}, out *api.IDSerial) error {
-	id := rpcapi.c.ID().ToSerial()
+	id := rpcapi.c.ID(ctx).ToSerial()
 	*out = id
 	return nil
 }
 
 // Pin runs Cluster.Pin().
 func (rpcapi *RPCAPI) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	ctx, span := trace.StartSpan(ctx, "rpc/cluster/Pin")
-	defer span.End()
 	return rpcapi.c.Pin(ctx, in.ToPin())
 }
 
 // Unpin runs Cluster.Unpin().
 func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	ctx, span := trace.StartSpan(ctx, "rpc/cluster/Unpin")
-	defer span.End()
 	c := in.DecodeCid()
 	return rpcapi.c.Unpin(ctx, c)
 }
 
 // Pins runs Cluster.Pins().
 func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
-	cidList := rpcapi.c.Pins()
+	cidList := rpcapi.c.Pins(ctx)
 	cidSerialList := make([]api.PinSerial, 0, len(cidList))
 	for _, c := range cidList {
 		cidSerialList = append(cidSerialList, c.ToSerial())
@@ -60,7 +57,7 @@ func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]api.PinSeria
 // PinGet runs Cluster.PinGet().
 func (rpcapi *RPCAPI) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
 	cidarg := in.ToPin()
-	pin, err := rpcapi.c.PinGet(cidarg.Cid)
+	pin, err := rpcapi.c.PinGet(ctx, cidarg.Cid)
 	if err == nil {
 		*out = pin.ToSerial()
 	}
@@ -77,7 +74,7 @@ func (rpcapi *RPCAPI) Version(ctx context.Context, in struct{}, out *api.Version
 
 // Peers runs Cluster.Peers().
 func (rpcapi *RPCAPI) Peers(ctx context.Context, in struct{}, out *[]api.IDSerial) error {
-	peers := rpcapi.c.Peers()
+	peers := rpcapi.c.Peers(ctx)
 	var sPeers []api.IDSerial
 	for _, p := range peers {
 		sPeers = append(sPeers, p.ToSerial())
@@ -89,7 +86,7 @@ func (rpcapi *RPCAPI) Peers(ctx context.Context, in struct{}, out *[]api.IDSeria
 // PeerAdd runs Cluster.PeerAdd().
 func (rpcapi *RPCAPI) PeerAdd(ctx context.Context, in string, out *api.IDSerial) error {
 	pid, _ := peer.IDB58Decode(in)
-	id, err := rpcapi.c.PeerAdd(pid)
+	id, err := rpcapi.c.PeerAdd(ctx, pid)
 	*out = id.ToSerial()
 	return err
 }
@@ -103,26 +100,26 @@ func (rpcapi *RPCAPI) ConnectGraph(ctx context.Context, in struct{}, out *api.Co
 
 // PeerRemove runs Cluster.PeerRm().
 func (rpcapi *RPCAPI) PeerRemove(ctx context.Context, in peer.ID, out *struct{}) error {
-	return rpcapi.c.PeerRemove(in)
+	return rpcapi.c.PeerRemove(ctx, in)
 }
 
 // Join runs Cluster.Join().
 func (rpcapi *RPCAPI) Join(ctx context.Context, in api.MultiaddrSerial, out *struct{}) error {
 	addr := in.ToMultiaddr()
-	err := rpcapi.c.Join(addr)
+	err := rpcapi.c.Join(ctx, addr)
 	return err
 }
 
 // StatusAll runs Cluster.StatusAll().
 func (rpcapi *RPCAPI) StatusAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfoSerial) error {
-	pinfos, err := rpcapi.c.StatusAll()
+	pinfos, err := rpcapi.c.StatusAll(ctx)
 	*out = GlobalPinInfoSliceToSerial(pinfos)
 	return err
 }
 
 // StatusAllLocal runs Cluster.StatusAllLocal().
 func (rpcapi *RPCAPI) StatusAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
-	pinfos := rpcapi.c.StatusAllLocal()
+	pinfos := rpcapi.c.StatusAllLocal(ctx)
 	*out = pinInfoSliceToSerial(pinfos)
 	return nil
 }
@@ -130,7 +127,7 @@ func (rpcapi *RPCAPI) StatusAllLocal(ctx context.Context, in struct{}, out *[]ap
 // Status runs Cluster.Status().
 func (rpcapi *RPCAPI) Status(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	c := in.DecodeCid()
-	pinfo, err := rpcapi.c.Status(c)
+	pinfo, err := rpcapi.c.Status(ctx, c)
 	*out = pinfo.ToSerial()
 	return err
 }
@@ -138,21 +135,21 @@ func (rpcapi *RPCAPI) Status(ctx context.Context, in api.PinSerial, out *api.Glo
 // StatusLocal runs Cluster.StatusLocal().
 func (rpcapi *RPCAPI) StatusLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
 	c := in.DecodeCid()
-	pinfo := rpcapi.c.StatusLocal(c)
+	pinfo := rpcapi.c.StatusLocal(ctx, c)
 	*out = pinfo.ToSerial()
 	return nil
 }
 
 // SyncAll runs Cluster.SyncAll().
 func (rpcapi *RPCAPI) SyncAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfoSerial) error {
-	pinfos, err := rpcapi.c.SyncAll()
+	pinfos, err := rpcapi.c.SyncAll(ctx)
 	*out = GlobalPinInfoSliceToSerial(pinfos)
 	return err
 }
 
 // SyncAllLocal runs Cluster.SyncAllLocal().
 func (rpcapi *RPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
-	pinfos, err := rpcapi.c.SyncAllLocal()
+	pinfos, err := rpcapi.c.SyncAllLocal(ctx)
 	*out = pinInfoSliceToSerial(pinfos)
 	return err
 }
@@ -160,7 +157,7 @@ func (rpcapi *RPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]api.
 // Sync runs Cluster.Sync().
 func (rpcapi *RPCAPI) Sync(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	c := in.DecodeCid()
-	pinfo, err := rpcapi.c.Sync(c)
+	pinfo, err := rpcapi.c.Sync(ctx, c)
 	*out = pinfo.ToSerial()
 	return err
 }
@@ -168,14 +165,14 @@ func (rpcapi *RPCAPI) Sync(ctx context.Context, in api.PinSerial, out *api.Globa
 // SyncLocal runs Cluster.SyncLocal().
 func (rpcapi *RPCAPI) SyncLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
 	c := in.DecodeCid()
-	pinfo, err := rpcapi.c.SyncLocal(c)
+	pinfo, err := rpcapi.c.SyncLocal(ctx, c)
 	*out = pinfo.ToSerial()
 	return err
 }
 
 // RecoverAllLocal runs Cluster.RecoverAllLocal().
 func (rpcapi *RPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
-	pinfos, err := rpcapi.c.RecoverAllLocal()
+	pinfos, err := rpcapi.c.RecoverAllLocal(ctx)
 	*out = pinInfoSliceToSerial(pinfos)
 	return err
 }
@@ -183,7 +180,7 @@ func (rpcapi *RPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]a
 // Recover runs Cluster.Recover().
 func (rpcapi *RPCAPI) Recover(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	c := in.DecodeCid()
-	pinfo, err := rpcapi.c.Recover(c)
+	pinfo, err := rpcapi.c.Recover(ctx, c)
 	*out = pinfo.ToSerial()
 	return err
 }
@@ -191,7 +188,7 @@ func (rpcapi *RPCAPI) Recover(ctx context.Context, in api.PinSerial, out *api.Gl
 // RecoverLocal runs Cluster.RecoverLocal().
 func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
 	c := in.DecodeCid()
-	pinfo, err := rpcapi.c.RecoverLocal(c)
+	pinfo, err := rpcapi.c.RecoverLocal(ctx, c)
 	*out = pinfo.ToSerial()
 	return err
 }
@@ -200,7 +197,7 @@ func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *a
 // It's different from pin allocations when ReplicationFactor < 0.
 func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
 	pin := in.ToPin()
-	err := rpcapi.c.setupPin(&pin)
+	err := rpcapi.c.setupPin(ctx, &pin)
 	if err != nil {
 		return err
 	}
@@ -209,7 +206,7 @@ func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *
 	if pin.ReplicationFactorMin < 0 {
 		// Returned metrics are Valid and belong to current
 		// Cluster peers.
-		metrics := rpcapi.c.monitor.LatestMetrics(pingMetricName)
+		metrics := rpcapi.c.monitor.LatestMetrics(ctx, pingMetricName)
 		peers := make([]string, len(metrics), len(metrics))
 		for i, m := range metrics {
 			peers[i] = peer.IDB58Encode(m.Peer)
@@ -220,6 +217,7 @@ func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *
 	}
 
 	allocs, err := rpcapi.c.allocate(
+		ctx,
 		pin.Cid,
 		pin.ReplicationFactorMin,
 		pin.ReplicationFactorMax,
@@ -237,7 +235,7 @@ func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *
 
 // SendInformerMetric runs Cluster.sendInformerMetric().
 func (rpcapi *RPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
-	m, err := rpcapi.c.sendInformerMetric()
+	m, err := rpcapi.c.sendInformerMetric(ctx)
 	*out = m
 	return err
 }
@@ -334,7 +332,7 @@ func (rpcapi *RPCAPI) IPFSPinLs(ctx context.Context, in string, out *map[string]
 
 // IPFSConnectSwarms runs IPFSConnector.ConnectSwarms().
 func (rpcapi *RPCAPI) IPFSConnectSwarms(ctx context.Context, in struct{}, out *struct{}) error {
-	err := rpcapi.c.ipfs.ConnectSwarms()
+	err := rpcapi.c.ipfs.ConnectSwarms(ctx)
 	return err
 }
 
@@ -347,27 +345,27 @@ func (rpcapi *RPCAPI) IPFSConfigKey(ctx context.Context, in string, out *interfa
 
 // IPFSRepoStat runs IPFSConnector.RepoStat().
 func (rpcapi *RPCAPI) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
-	res, err := rpcapi.c.ipfs.RepoStat()
+	res, err := rpcapi.c.ipfs.RepoStat(ctx)
 	*out = res
 	return err
 }
 
 // IPFSSwarmPeers runs IPFSConnector.SwarmPeers().
 func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.SwarmPeersSerial) error {
-	res, err := rpcapi.c.ipfs.SwarmPeers()
+	res, err := rpcapi.c.ipfs.SwarmPeers(ctx)
 	*out = res.ToSerial()
 	return err
 }
 
 // IPFSBlockPut runs IPFSConnector.BlockPut().
 func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
-	return rpcapi.c.ipfs.BlockPut(in)
+	return rpcapi.c.ipfs.BlockPut(ctx, in)
 }
 
 // IPFSBlockGet runs IPFSConnector.BlockGet().
 func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[]byte) error {
 	c := in.DecodeCid()
-	res, err := rpcapi.c.ipfs.BlockGet(c)
+	res, err := rpcapi.c.ipfs.BlockGet(ctx, c)
 	*out = res
 	return err
 }
@@ -408,7 +406,7 @@ func (rpcapi *RPCAPI) ConsensusRmPeer(ctx context.Context, in peer.ID, out *stru
 
 // ConsensusPeers runs Consensus.Peers().
 func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
-	peers, err := rpcapi.c.consensus.Peers()
+	peers, err := rpcapi.c.consensus.Peers(ctx)
 	*out = peers
 	return err
 }
@@ -419,12 +417,12 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 
 // PeerMonitorLogMetric runs PeerMonitor.LogMetric().
 func (rpcapi *RPCAPI) PeerMonitorLogMetric(ctx context.Context, in api.Metric, out *struct{}) error {
-	rpcapi.c.monitor.LogMetric(in)
+	rpcapi.c.monitor.LogMetric(ctx, in)
 	return nil
 }
 
 // PeerMonitorLatestMetrics runs PeerMonitor.LatestMetrics().
 func (rpcapi *RPCAPI) PeerMonitorLatestMetrics(ctx context.Context, in string, out *[]api.Metric) error {
-	*out = rpcapi.c.monitor.LatestMetrics(in)
+	*out = rpcapi.c.monitor.LatestMetrics(ctx, in)
 	return nil
 }

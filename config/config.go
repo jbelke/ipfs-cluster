@@ -55,6 +55,7 @@ const (
 	Monitor
 	Allocator
 	Informer
+	Observations
 	endTypes // keep this at the end
 )
 
@@ -165,15 +166,16 @@ func (cfg *Manager) watchSave(save <-chan struct{}) {
 // saved using json. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type jsonConfig struct {
-	Cluster    *json.RawMessage `json:"cluster"`
-	Consensus  jsonSection      `json:"consensus,omitempty"`
-	API        jsonSection      `json:"api,omitempty"`
-	IPFSConn   jsonSection      `json:"ipfs_connector,omitempty"`
-	State      jsonSection      `json:"state,omitempty"`
-	PinTracker jsonSection      `json:"pin_tracker,omitempty"`
-	Monitor    jsonSection      `json:"monitor,omitempty"`
-	Allocator  jsonSection      `json:"allocator,omitempty"`
-	Informer   jsonSection      `json:"informer,omitempty"`
+	Observations jsonSection      `json:"observations,omitempty"`
+	Cluster      *json.RawMessage `json:"cluster"`
+	Consensus    jsonSection      `json:"consensus,omitempty"`
+	API          jsonSection      `json:"api,omitempty"`
+	IPFSConn     jsonSection      `json:"ipfs_connector,omitempty"`
+	State        jsonSection      `json:"state,omitempty"`
+	PinTracker   jsonSection      `json:"pin_tracker,omitempty"`
+	Monitor      jsonSection      `json:"monitor,omitempty"`
+	Allocator    jsonSection      `json:"allocator,omitempty"`
+	Informer     jsonSection      `json:"informer,omitempty"`
 }
 
 func (jcfg *jsonConfig) getSection(i SectionType) jsonSection {
@@ -455,6 +457,8 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 			err = updateJSONConfigs(v, &jcfg.Allocator)
 		case Informer:
 			err = updateJSONConfigs(v, &jcfg.Informer)
+		case Observations:
+			err = updateJSONConfigs(v, &jcfg.Observations)
 		}
 		if err != nil {
 			return nil, err

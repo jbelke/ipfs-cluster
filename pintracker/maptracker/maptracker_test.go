@@ -86,25 +86,28 @@ func testMapPinTracker(t *testing.T) *MapPinTracker {
 }
 
 func TestNew(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 }
 
 func TestShutdown(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	err := mpt.Shutdown()
+	err := mpt.Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = mpt.Shutdown()
+	err = mpt.Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestTrack(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h, _ := cid.Decode(test.TestCid1)
 
@@ -139,8 +142,9 @@ func TestTrack(t *testing.T) {
 }
 
 func TestUntrack(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
@@ -189,8 +193,9 @@ func TestUntrack(t *testing.T) {
 }
 
 func TestStatusAll(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
@@ -220,8 +225,9 @@ func TestStatusAll(t *testing.T) {
 }
 
 func TestSyncAndRecover(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
@@ -272,8 +278,9 @@ func TestSyncAndRecover(t *testing.T) {
 }
 
 func TestRecoverAll(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 
@@ -298,8 +305,9 @@ func TestRecoverAll(t *testing.T) {
 }
 
 func TestSyncAll(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	synced, err := mpt.SyncAll(context.Background())
 	if err != nil {
@@ -332,8 +340,9 @@ func TestSyncAll(t *testing.T) {
 }
 
 func TestUntrackTrack(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 
@@ -353,8 +362,9 @@ func TestUntrackTrack(t *testing.T) {
 }
 
 func TestTrackUntrackWithCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 
@@ -392,8 +402,9 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 }
 
 func TestTrackUntrackWithNoCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 	fastPinCid, _ := cid.Decode(pinCancelCid)
@@ -437,8 +448,9 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 }
 
 func TestUntrackTrackWithCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 
@@ -486,8 +498,9 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 }
 
 func TestUntrackTrackWithNoCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 	fastPinCid, _ := cid.Decode(unpinCancelCid)
@@ -541,8 +554,9 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 }
 
 func TestTrackUntrackConcurrent(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 

@@ -29,7 +29,7 @@ type mockComponent struct {
 	rpcClient *rpc.Client
 }
 
-func (c *mockComponent) Shutdown() error {
+func (c *mockComponent) Shutdown(ctx context.Context) error {
 	return nil
 }
 
@@ -53,7 +53,7 @@ type mockConnector struct {
 	blocks sync.Map
 }
 
-func (ipfs *mockConnector) ID() (api.IPFSID, error) {
+func (ipfs *mockConnector) ID(ctx context.Context) (api.IPFSID, error) {
 	return api.IPFSID{
 		ID: test.TestPeerID1,
 	}, nil
@@ -99,23 +99,23 @@ func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string
 	return m, nil
 }
 
-func (ipfs *mockConnector) SwarmPeers() (api.SwarmPeers, error) {
+func (ipfs *mockConnector) SwarmPeers(ctx context.Context) (api.SwarmPeers, error) {
 	return []peer.ID{test.TestPeerID4, test.TestPeerID5}, nil
 }
 
-func (ipfs *mockConnector) RepoStat() (api.IPFSRepoStat, error) {
+func (ipfs *mockConnector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
 	return api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
 }
 
-func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
+func (ipfs *mockConnector) ConnectSwarms(ctx context.Context) error       { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 
-func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) error {
+func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm api.NodeWithMeta) error {
 	ipfs.blocks.Store(nwm.Cid, nwm.Data)
 	return nil
 }
 
-func (ipfs *mockConnector) BlockGet(c cid.Cid) ([]byte, error) {
+func (ipfs *mockConnector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {
 	d, ok := ipfs.blocks.Load(c.String())
 	if !ok {
 		return nil, errors.New("block not found")
@@ -177,14 +177,15 @@ func cleanRaft() {
 }
 
 func testClusterShutdown(t *testing.T) {
+	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
-	err := cl.Shutdown()
+	err := cl.Shutdown(ctx)
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
 	}
-	cl.Shutdown()
+	cl.Shutdown(ctx)
 	cl, _, _, _, _ = testingCluster(t)
-	err = cl.Shutdown()
+	err = cl.Shutdown(ctx)
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
 	}
@@ -195,8 +196,8 @@ func TestClusterStateSync(t *testing.T) {
 	cleanRaft()
 	cl, _, _, st, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
-	err := cl.StateSync()
+	defer cl.Shutdown(ctx)
+	err := cl.StateSync(ctx)
 	if err == nil {
 		t.Fatal("expected an error as there is no state to sync")
 	}
@@ -207,25 +208,26 @@ func TestClusterStateSync(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	err = cl.StateSync()
+	err = cl.StateSync(ctx)
 	if err != nil {
 		t.Fatal("sync after pinning should have worked:", err)
 	}
 
 	// Modify state on the side so the sync does not
 	// happen on an empty slide
-	st.Rm(c)
-	err = cl.StateSync()
+	st.Rm(ctx, c)
+	err = cl.StateSync(ctx)
 	if err != nil {
 		t.Fatal("sync with recover should have worked:", err)
 	}
 }
 
 func TestClusterID(t *testing.T) {
+	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
-	id := cl.ID()
+	defer cl.Shutdown(ctx)
+	id := cl.ID(ctx)
 	if len(id.Addresses) == 0 {
 		t.Error("expected more addresses")
 	}
@@ -244,7 +246,7 @@ func TestClusterPin(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
 	err := cl.Pin(ctx, api.PinCid(c))
@@ -253,7 +255,7 @@ func TestClusterPin(t *testing.T) {
 	}
 
 	// test an error case
-	cl.consensus.Shutdown()
+	cl.consensus.Shutdown(ctx)
 	pin := api.PinCid(c)
 	pin.ReplicationFactorMax = 1
 	pin.ReplicationFactorMin = 1
@@ -267,7 +269,7 @@ func TestAddFile(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
@@ -288,7 +290,7 @@ func TestAddFile(t *testing.T) {
 
 		pinDelay()
 
-		pin := cl.StatusLocal(c)
+		pin := cl.StatusLocal(ctx, c)
 		if pin.Error != "" {
 			t.Fatal(pin.Error)
 		}
@@ -327,7 +329,7 @@ func TestUnpinShard(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
@@ -350,10 +352,10 @@ func TestUnpinShard(t *testing.T) {
 	// skipping errors, VerifyShards has checked
 	pinnedCids := []cid.Cid{}
 	pinnedCids = append(pinnedCids, root)
-	metaPin, _ := cl.PinGet(root)
-	cDag, _ := cl.PinGet(metaPin.Reference)
+	metaPin, _ := cl.PinGet(ctx, root)
+	cDag, _ := cl.PinGet(ctx, metaPin.Reference)
 	pinnedCids = append(pinnedCids, cDag.Cid)
-	cDagBlock, _ := cl.ipfs.BlockGet(cDag.Cid)
+	cDagBlock, _ := cl.ipfs.BlockGet(ctx, cDag.Cid)
 	cDagNode, _ := sharding.CborDataToNode(cDagBlock, "cbor")
 	for _, l := range cDagNode.Links() {
 		pinnedCids = append(pinnedCids, l.Cid)
@@ -384,7 +386,7 @@ func TestUnpinShard(t *testing.T) {
 		pinDelay()
 
 		for _, c := range pinnedCids {
-			st := cl.StatusLocal(c)
+			st := cl.StatusLocal(ctx, c)
 			if st.Status != api.TrackerStatusUnpinned {
 				t.Errorf("%s should have been unpinned but is %s", c, st.Status)
 			}
@@ -689,7 +691,7 @@ func TestClusterPins(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
 	err := cl.Pin(ctx, api.PinCid(c))
@@ -697,7 +699,7 @@ func TestClusterPins(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	pins := cl.Pins()
+	pins := cl.Pins(ctx)
 	if len(pins) != 1 {
 		t.Fatal("pin should be part of the state")
 	}
@@ -710,7 +712,7 @@ func TestClusterPinGet(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
 	err := cl.Pin(ctx, api.PinCid(c))
@@ -718,7 +720,7 @@ func TestClusterPinGet(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	pin, err := cl.PinGet(c)
+	pin, err := cl.PinGet(ctx, c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -727,7 +729,7 @@ func TestClusterPinGet(t *testing.T) {
 	}
 
 	c2, _ := cid.Decode(test.TestCid2)
-	_, err = cl.PinGet(c2)
+	_, err = cl.PinGet(ctx, c2)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -737,7 +739,7 @@ func TestClusterUnpin(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
 	// Unpin should error without pin being committed to state
@@ -757,7 +759,7 @@ func TestClusterUnpin(t *testing.T) {
 	}
 
 	// test another error case
-	cl.consensus.Shutdown()
+	cl.consensus.Shutdown(ctx)
 	err = cl.Unpin(ctx, c)
 	if err == nil {
 		t.Error("expected an error but things worked")
@@ -765,10 +767,11 @@ func TestClusterUnpin(t *testing.T) {
 }
 
 func TestClusterPeers(t *testing.T) {
+	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
-	peers := cl.Peers()
+	defer cl.Shutdown(ctx)
+	peers := cl.Peers(ctx)
 	if len(peers) != 1 {
 		t.Fatal("expected 1 peer")
 	}
@@ -781,9 +784,10 @@ func TestClusterPeers(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
+	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 	if cl.Version() != version.Version.String() {
 		t.Error("bad Version()")
 	}
@@ -793,7 +797,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
-	defer cl.Shutdown()
+	defer cl.Shutdown(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
 	err := cl.Pin(ctx, api.PinCid(c))
@@ -803,7 +807,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 
 	pinDelay()
 
-	recov, err := cl.RecoverAllLocal()
+	recov, err := cl.RecoverAllLocal(ctx)
 	if err != nil {
 		t.Error("did not expect an error")
 	}

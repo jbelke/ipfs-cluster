@@ -6,6 +6,7 @@ import (
 
 	"github.com/gxed/opencensus-go/tag"
 	"github.com/gxed/opencensus-go/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
@@ -39,8 +40,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 		logger.Error(err)
 	}
 	ctx := tag.NewContext(context.Background(), tagmap)
-	var span *trace.Span
-	ctx, span = trace.StartSpanWithRemoteParent(ctx, "consensus/raft/logop/ApplyTo", op.SpanCtx)
+	ctx, span := trace.StartSpanWithRemoteParent(ctx, "consensus/raft/logop/ApplyTo", op.SpanCtx)
 	defer span.End()
 
 	state, ok := cstate.(state.State)
@@ -58,7 +58,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 
 	switch op.Type {
 	case LogOpPin:
-		err = state.Add(pinS.ToPin())
+		err = state.Add(ctx, pinS.ToPin())
 		if err != nil {
 			goto ROLLBACK
 		}
@@ -73,7 +73,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			nil,
 		)
 	case LogOpUnpin:
-		err = state.Rm(pinS.DecodeCid())
+		err = state.Rm(ctx, pinS.DecodeCid())
 		if err != nil {
 			goto ROLLBACK
 		}

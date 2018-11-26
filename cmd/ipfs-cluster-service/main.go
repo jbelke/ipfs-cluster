@@ -3,6 +3,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -154,9 +155,6 @@ func checkErr(doing string, err error, args ...interface{}) {
 }
 
 func main() {
-	setupTracing(newTracingConfig())
-	setupMetrics(newMetricsConfig())
-
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "IPFS Cluster node"
@@ -286,6 +284,10 @@ configuration.
 					Hidden: true,
 					Usage:  "pintracker to use [map,stateless].",
 				},
+				cli.BoolFlag{
+					Name:  "metrics",
+					Usage: "enable metrics collection",
+				},
 			},
 			Action: daemon,
 		},
@@ -312,11 +314,12 @@ To successfully run an upgrade of an entire cluster, shut down each peer without
 removal, upgrade state using this command, and restart every peer.
 `,
 					Action: func(c *cli.Context) error {
+						ctx := context.Background()
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						err = upgrade()
+						err = upgrade(ctx)
 						checkErr("upgrading state", err)
 						return nil
 					},
@@ -338,6 +341,7 @@ prints the state to stdout.
 						},
 					},
 					Action: func(c *cli.Context) error {
+						ctx := context.Background()
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
@@ -354,7 +358,7 @@ prints the state to stdout.
 						}
 						defer w.Close()
 
-						err = export(w)
+						err = export(ctx, w)
 						checkErr("exporting state", err)
 						return nil
 					},
@@ -375,6 +379,7 @@ import.  If no argument is provided cluster will read json from stdin
 						},
 					},
 					Action: func(c *cli.Context) error {
+						ctx := context.Background()
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
@@ -396,7 +401,7 @@ import.  If no argument is provided cluster will read json from stdin
 							checkErr("reading import file", err)
 						}
 						defer r.Close()
-						err = stateImport(r)
+						err = stateImport(ctx, r)
 						checkErr("importing state", err)
 						logger.Info("the given state has been correctly imported to this peer.  Make sure all peers have consistent states")
 						return nil

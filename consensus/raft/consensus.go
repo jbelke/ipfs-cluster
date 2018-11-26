@@ -12,6 +12,7 @@ import (
 
 	"github.com/gxed/opencensus-go/tag"
 	"github.com/gxed/opencensus-go/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
@@ -99,9 +100,12 @@ func NewConsensus(
 }
 
 // WaitForSync waits for a leader and for the state to be up to date, then returns.
-func (cc *Consensus) WaitForSync() error {
+func (cc *Consensus) WaitForSync(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/WaitForSync")
+	defer span.End()
+
 	leaderCtx, cancel := context.WithTimeout(
-		cc.ctx,
+		ctx,
 		cc.config.WaitForLeaderTimeout)
 	defer cancel()
 
@@ -124,12 +128,12 @@ func (cc *Consensus) WaitForSync() error {
 		return errors.New("error waiting for leader: " + err.Error())
 	}
 
-	err = cc.raft.WaitForVoter(cc.ctx)
+	err = cc.raft.WaitForVoter(ctx)
 	if err != nil {
 		return errors.New("error waiting to become a Voter: " + err.Error())
 	}
 
-	err = cc.raft.WaitForUpdates(cc.ctx)
+	err = cc.raft.WaitForUpdates(ctx)
 	if err != nil {
 		return errors.New("error waiting for consensus updates: " + err.Error())
 	}
@@ -154,7 +158,7 @@ func (cc *Consensus) finishBootstrap() {
 		return
 	}
 
-	err = cc.WaitForSync()
+	err = cc.WaitForSync(cc.ctx)
 	if err != nil {
 		return
 	}
@@ -166,7 +170,10 @@ func (cc *Consensus) finishBootstrap() {
 // Shutdown stops the component so it will not process any
 // more updates. The underlying consensus is permanently
 // shutdown, along with the libp2p transport.
-func (cc *Consensus) Shutdown() error {
+func (cc *Consensus) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/Shutdown")
+	defer span.End()
+
 	cc.shutdownLock.Lock()
 	defer cc.shutdownLock.Unlock()
 
@@ -178,7 +185,7 @@ func (cc *Consensus) Shutdown() error {
 	logger.Info("stopping Consensus component")
 
 	// Raft Shutdown
-	err := cc.raft.Shutdown()
+	err := cc.raft.Shutdown(ctx)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -201,7 +208,10 @@ func (cc *Consensus) SetClient(c *rpc.Client) {
 
 // Ready returns a channel which is signaled when the Consensus
 // algorithm has finished bootstrapping and is ready to use
-func (cc *Consensus) Ready() <-chan struct{} {
+func (cc *Consensus) Ready(ctx context.Context) <-chan struct{} {
+	ctx, span := trace.StartSpan(ctx, "consensus/Ready")
+	defer span.End()
+
 	return cc.readyCh
 }
 
@@ -216,19 +226,23 @@ func (cc *Consensus) op(ctx context.Context, pin api.Pin, t LogOpType) *LogOp {
 // note that if the leader just dissappeared, the rpc call will
 // fail because we haven't heard that it's gone.
 func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, error) {
+	ctx, span := trace.StartSpan(cc.ctx, "consensus/WaitForSync")
+	defer span.End()
+
 	var finalErr error
 
 	// Retry redirects
 	for i := 0; i <= cc.config.CommitRetries; i++ {
 		logger.Debugf("redirect try %d", i)
-		leader, err := cc.Leader()
+		leader, err := cc.Leader(ctx)
 
 		// No leader, wait for one
 		if err != nil {
 			logger.Warning("there seems to be no leader. Waiting for one")
 			rctx, cancel := context.WithTimeout(
-				cc.ctx,
-				cc.config.WaitForLeaderTimeout)
+				ctx,
+				cc.config.WaitForLeaderTimeout,
+			)
 			defer cancel()
 			pidstr, err := cc.raft.WaitForLeader(rctx)
 
@@ -249,12 +263,14 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 		}
 
 		logger.Debugf("redirecting %s to leader: %s", method, leader.Pretty())
-		finalErr = cc.rpcClient.Call(
+		finalErr = cc.rpcClient.CallContext(
+			ctx,
 			leader,
 			"Cluster",
 			method,
 			arg,
-			&struct{}{})
+			&struct{}{},
+		)
 		if finalErr != nil {
 			logger.Error(finalErr)
 			logger.Error("retrying to redirect request to leader")
@@ -270,15 +286,13 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 
 // commit submits a cc.consensus commit. It retries upon failures.
 func (cc *Consensus) commit(ctx context.Context, op *LogOp, rpcOp string, redirectArg interface{}) error {
-	var span *trace.Span
-	ctx, span = trace.StartSpan(ctx, "consensus/raft/commit")
+	ctx, span := trace.StartSpan(ctx, "consensus/commit")
 	defer span.End()
 
 	// required to cross the serialized boundary
 	op.SpanCtx = span.SpanContext()
 	tagmap := tag.FromContext(ctx)
 	if tagmap != nil {
-		logger.Errorf("tagmap: %v", tagmap)
 		op.TagCtx = tag.Encode(tagmap)
 	}
 
@@ -327,7 +341,7 @@ func (cc *Consensus) commit(ctx context.Context, op *LogOp, rpcOp string, redire
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
 func (cc *Consensus) LogPin(ctx context.Context, pin api.Pin) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/raft/LogPin")
+	ctx, span := trace.StartSpan(ctx, "consensus/LogPin")
 	defer span.End()
 
 	op := cc.op(ctx, pin, LogOpPin)
@@ -340,7 +354,7 @@ func (cc *Consensus) LogPin(ctx context.Context, pin api.Pin) error {
 
 // LogUnpin removes a Cid from the shared state of the cluster.
 func (cc *Consensus) LogUnpin(ctx context.Context, pin api.Pin) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/raft/LogUnpin")
+	ctx, span := trace.StartSpan(ctx, "consensus/LogUnpin")
 	defer span.End()
 
 	op := cc.op(ctx, pin, LogOpUnpin)
@@ -354,6 +368,9 @@ func (cc *Consensus) LogUnpin(ctx context.Context, pin api.Pin) error {
 // AddPeer adds a new peer to participate in this consensus. It will
 // forward the operation to the leader if this is not it.
 func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/AddPeer")
+	defer span.End()
+
 	var finalErr error
 	for i := 0; i <= cc.config.CommitRetries; i++ {
 		logger.Debugf("attempt #%d: AddPeer %s", i, pid.Pretty())
@@ -366,7 +383,7 @@ func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 		}
 		// Being here means we are the leader and can commit
 		cc.shutdownLock.RLock() // do not shutdown while committing
-		finalErr = cc.raft.AddPeer(peer.IDB58Encode(pid))
+		finalErr = cc.raft.AddPeer(ctx, peer.IDB58Encode(pid))
 		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
@@ -381,6 +398,9 @@ func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 // RmPeer removes a peer from this consensus. It will
 // forward the operation to the leader if this is not it.
 func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/RmPeer")
+	defer span.End()
+
 	var finalErr error
 	for i := 0; i <= cc.config.CommitRetries; i++ {
 		logger.Debugf("attempt #%d: RmPeer %s", i, pid.Pretty())
@@ -393,7 +413,7 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 		}
 		// Being here means we are the leader and can commit
 		cc.shutdownLock.RLock() // do not shutdown while committing
-		finalErr = cc.raft.RemovePeer(peer.IDB58Encode(pid))
+		finalErr = cc.raft.RemovePeer(ctx, peer.IDB58Encode(pid))
 		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
@@ -409,7 +429,10 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 // if no State has been agreed upon or the state is not
 // consistent. The returned State is the last agreed-upon
 // State known by this node.
-func (cc *Consensus) State() (state.State, error) {
+func (cc *Consensus) State(ctx context.Context) (state.State, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/State")
+	defer span.End()
+
 	st, err := cc.consensus.GetLogHead()
 	if err != nil {
 		return nil, err
@@ -423,7 +446,10 @@ func (cc *Consensus) State() (state.State, error) {
 
 // Leader returns the peerID of the Leader of the
 // cluster. It returns an error when there is no leader.
-func (cc *Consensus) Leader() (peer.ID, error) {
+func (cc *Consensus) Leader(ctx context.Context) (peer.ID, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/Leader")
+	defer span.End()
+
 	// Note the hard-dependency on raft here...
 	raftactor := cc.actor.(*libp2praft.Actor)
 	return raftactor.Leader()
@@ -431,7 +457,10 @@ func (cc *Consensus) Leader() (peer.ID, error) {
 
 // Clean removes all raft data from disk. Next time
 // a full new peer will be bootstrapped.
-func (cc *Consensus) Clean() error {
+func (cc *Consensus) Clean(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/Clean")
+	defer span.End()
+
 	cc.shutdownLock.RLock()
 	defer cc.shutdownLock.RUnlock()
 	if !cc.shutdown {
@@ -457,7 +486,10 @@ func (cc *Consensus) Rollback(state state.State) error {
 
 // Peers return the current list of peers in the consensus.
 // The list will be sorted alphabetically.
-func (cc *Consensus) Peers() ([]peer.ID, error) {
+func (cc *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/Peers")
+	defer span.End()
+
 	cc.shutdownLock.RLock() // prevent shutdown while here
 	defer cc.shutdownLock.RUnlock()
 
@@ -465,7 +497,7 @@ func (cc *Consensus) Peers() ([]peer.ID, error) {
 		return nil, errors.New("consensus is shutdown")
 	}
 	peers := []peer.ID{}
-	raftPeers, err := cc.raft.Peers()
+	raftPeers, err := cc.raft.Peers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot retrieve list of peers: %s", err)
 	}

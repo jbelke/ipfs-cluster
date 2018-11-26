@@ -118,25 +118,28 @@ func testStatelessPinTracker(t testing.TB) *Tracker {
 }
 
 func TestStatelessPinTracker_New(t *testing.T) {
+	ctx := context.Background()
 	spt := testStatelessPinTracker(t)
-	defer spt.Shutdown()
+	defer spt.Shutdown(ctx)
 }
 
 func TestStatelessPinTracker_Shutdown(t *testing.T) {
+	ctx := context.Background()
 	spt := testStatelessPinTracker(t)
-	err := spt.Shutdown()
+	err := spt.Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = spt.Shutdown()
+	err = spt.Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestUntrackTrack(t *testing.T) {
+	ctx := context.Background()
 	spt := testStatelessPinTracker(t)
-	defer spt.Shutdown()
+	defer spt.Shutdown(ctx)
 
 	h1 := test.MustDecodeCid(test.TestCid1)
 
@@ -157,8 +160,9 @@ func TestUntrackTrack(t *testing.T) {
 }
 
 func TestTrackUntrackWithCancel(t *testing.T) {
+	ctx := context.Background()
 	spt := testSlowStatelessPinTracker(t)
-	defer spt.Shutdown()
+	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.MustDecodeCid(test.TestSlowCid1)
 
@@ -201,8 +205,9 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 // "pinning", it should simply be unqueued (or ignored), and no
 // cancelling of the pinning operation happens (unlike on WithCancel).
 func TestTrackUntrackWithNoCancel(t *testing.T) {
+	ctx := context.Background()
 	spt := testSlowStatelessPinTracker(t)
-	defer spt.Shutdown()
+	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.MustDecodeCid(test.TestSlowCid1)
 	fastPinCid := test.MustDecodeCid(pinCancelCid)
@@ -251,8 +256,9 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 }
 
 func TestUntrackTrackWithCancel(t *testing.T) {
+	ctx := context.Background()
 	spt := testSlowStatelessPinTracker(t)
-	defer spt.Shutdown()
+	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.MustDecodeCid(test.TestSlowCid1)
 
@@ -300,8 +306,9 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 }
 
 func TestUntrackTrackWithNoCancel(t *testing.T) {
+	ctx := context.Background()
 	spt := testStatelessPinTracker(t)
-	defer spt.Shutdown()
+	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.MustDecodeCid(test.TestSlowCid1)
 	fastPinCid := test.MustDecodeCid(unpinCancelCid)

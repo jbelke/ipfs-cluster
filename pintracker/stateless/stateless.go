@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gxed/opencensus-go/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 
@@ -113,9 +114,12 @@ func applyPinF(pinF func(*optracker.Operation) error, op *optracker.Operation) b
 }
 
 func (spt *Tracker) pin(op *optracker.Operation) error {
+	ctx, span := trace.StartSpan(op.Context(), "tracker/stateless/pin")
+	defer span.End()
+
 	logger.Debugf("issuing pin call for %s", op.Cid())
 	err := spt.rpcClient.CallContext(
-		op.Context(),
+		ctx,
 		"",
 		"Cluster",
 		"IPFSPin",
@@ -129,9 +133,12 @@ func (spt *Tracker) pin(op *optracker.Operation) error {
 }
 
 func (spt *Tracker) unpin(op *optracker.Operation) error {
+	ctx, span := trace.StartSpan(op.Context(), "tracker/stateless/unpin")
+	defer span.End()
+
 	logger.Debugf("issuing unpin call for %s", op.Cid())
 	err := spt.rpcClient.CallContext(
-		op.Context(),
+		ctx,
 		"",
 		"Cluster",
 		"IPFSUnpin",
@@ -187,8 +194,8 @@ func (spt *Tracker) SetClient(c *rpc.Client) {
 
 // Shutdown finishes the services provided by the StatelessPinTracker
 // and cancels any active context.
-func (spt *Tracker) Shutdown() error {
-	ctx, span := trace.StartSpan(spt.ctx, "tracker/stateless/Shutdown")
+func (spt *Tracker) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Shutdown")
 	_ = ctx
 	defer span.End()
 

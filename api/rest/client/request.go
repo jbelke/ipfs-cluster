@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gxed/opencensus-go/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
@@ -50,12 +51,15 @@ func (c *defaultClient) doRequest(
 	headers map[string]string,
 	body io.Reader,
 ) (*http.Response, error) {
-	ctx, span := trace.StartSpan(ctx, "client/doRequest", trace.WithSpanKind(trace.SpanKindClient))
+	span := trace.FromContext(ctx)
 	span.AddAttributes(
 		trace.StringAttribute("method", method),
 		trace.StringAttribute("path", path),
 	)
 	defer span.End()
+
+	logger.Errorf(">>>>>>>>>> doRequest: ctx: %v\n", ctx)
+	logger.Errorf(">>>>>>>>>> doRequest: span: %v\n", span)
 
 	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)

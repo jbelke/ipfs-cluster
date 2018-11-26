@@ -7,11 +7,9 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/gxed/opencensus-go/stats"
-	"github.com/gxed/opencensus-go/tag"
 	"github.com/gxed/opencensus-go/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/metrics"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/util"
 
@@ -111,7 +109,10 @@ func (mpt *MapPinTracker) opWorker(ctx context.Context, pinF func(*optracker.Ope
 
 // Shutdown finishes the services provided by the MapPinTracker and cancels
 // any active context.
-func (mpt *MapPinTracker) Shutdown() error {
+func (mpt *MapPinTracker) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "tracker/map/Shutdown")
+	defer span.End()
+
 	mpt.shutdownLock.Lock()
 	defer mpt.shutdownLock.Unlock()
 
@@ -144,19 +145,16 @@ func (mpt *MapPinTracker) pin(op *optracker.Operation) error {
 	if err != nil {
 		return err
 	}
-	ctx, err = tag.New(
-		ctx,
-		tag.Upsert(metrics.HostKey, mpt.peerID.String()),
-	)
-	stats.Record(ctx, metrics.TrackerPinCountMetric.M(1))
-
 	return nil
 }
 
 func (mpt *MapPinTracker) unpin(op *optracker.Operation) error {
+	ctx, span := trace.StartSpan(op.Context(), "tracker/map/unpin")
+	defer span.End()
+
 	logger.Debugf("issuing unpin call for %s", op.Cid())
 	err := mpt.rpcClient.CallContext(
-		op.Context(),
+		ctx,
 		"",
 		"Cluster",
 		"IPFSUnpin",
@@ -166,17 +164,14 @@ func (mpt *MapPinTracker) unpin(op *optracker.Operation) error {
 	if err != nil {
 		return err
 	}
-	mpt.ctx, err = tag.New(
-		mpt.ctx,
-		tag.Upsert(metrics.HostKey, mpt.peerID.String()),
-	)
-	stats.Record(mpt.ctx, metrics.TrackerPinCountMetric.M(-1))
-
 	return nil
 }
 
 // puts a new operation on the queue, unless ongoing exists
 func (mpt *MapPinTracker) enqueue(ctx context.Context, c api.Pin, typ optracker.OperationType, ch chan *optracker.Operation) error {
+	ctx, span := trace.StartSpan(ctx, "tracker/map/enqueue")
+	defer span.End()
+
 	op := mpt.optracker.TrackNewOperation(ctx, c, typ, optracker.PhaseQueued)
 	if op == nil {
 		return nil // ongoing pin operation.

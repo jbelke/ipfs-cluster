@@ -1,4 +1,4 @@
-package metrics
+package observations
 
 import (
 	"github.com/gxed/opencensus-go/stats"
@@ -8,7 +8,7 @@ import (
 	logging "github.com/ipfs/go-log"
 )
 
-var logger = logging.Logger("ipfscluster")
+var logger = logging.Logger("observations")
 
 var (
 	// taken from ocgrpc (https://github.com/census-instrumentation/opencensus-go/blob/master/plugin/ocgrpc/stats_common.go)

@@ -18,6 +18,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
+	"github.com/ipfs/ipfs-cluster/observations"
 	uuid "github.com/satori/go.uuid"
 
 	cid "github.com/ipfs/go-cid"
@@ -43,6 +44,8 @@ var (
 )
 
 var logger = logging.Logger("cluster-ctl")
+
+var tracer *jaeger.Exporter
 
 var globalClient client.Client
 
@@ -83,10 +86,6 @@ func checkErr(doing string, err error) {
 		out("error %s: %s\n", doing, err)
 		os.Exit(1)
 	}
-}
-
-func init() {
-	setupTracing(newTracingConfig())
 }
 
 func main() {
@@ -184,6 +183,16 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		globalClient, err = client.NewDefaultClient(cfg)
 		checkErr("creating API client", err)
+
+		tracingCfg := &observations.Config{}
+		tracingCfg.Default()
+		tracingCfg.TracingServiceName = "cluster-ctl"
+		tracingCfg.TracingSamplingProb = 1
+		tracer = observations.SetupTracing(tracingCfg)
+		return nil
+	}
+	app.After = func(c *cli.Context) error {
+		tracer.Flush()
 		return nil
 	}
 
@@ -197,7 +206,7 @@ This command displays information about the peer that the tool is contacting
 `,
 			Flags: []cli.Flag{},
 			Action: func(c *cli.Context) error {
-				resp, cerr := globalClient.ID()
+				resp, cerr := globalClient.ID(ctx)
 				formatResponse(c, resp, cerr)
 				return nil
 			},
@@ -216,7 +225,7 @@ This command provides a list of the ID information of all the peers in the Clust
 					Flags:     []cli.Flag{},
 					ArgsUsage: " ",
 					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.Peers()
+						resp, cerr := globalClient.Peers(ctx)
 						formatResponse(c, resp, cerr)
 						return nil
 					},
@@ -236,7 +245,7 @@ cluster peers.
 						pid := c.Args().First()
 						p, err := peer.IDB58Decode(pid)
 						checkErr("parsing peer ID", err)
-						cerr := globalClient.PeerRm(p)
+						cerr := globalClient.PeerRm(ctx, p)
 						formatResponse(c, nil, cerr)
 						return nil
 					},
@@ -438,7 +447,7 @@ cluster "pin add".
 					}
 				}()
 
-				cerr := globalClient.Add(paths, p, out)
+				cerr := globalClient.Add(ctx, paths, p, out)
 				wg.Wait()
 				formatResponse(c, nil, cerr)
 				return cerr
@@ -501,7 +510,6 @@ peers should pin this content.
 						},
 					},
 					Action: func(c *cli.Context) error {
-
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
@@ -521,6 +529,7 @@ peers should pin this content.
 						}
 
 						handlePinResponseFormatFlags(
+							ctx,
 							c,
 							ci,
 							api.TrackerStatusPinned,
@@ -567,6 +576,7 @@ although unpinning operations in the cluster may take longer or fail.
 						}
 
 						handlePinResponseFormatFlags(
+							ctx,
 							c,
 							ci,
 							api.TrackerStatusUnpinned,
@@ -604,7 +614,7 @@ The filter only takes effect when listing all pins. The possible values are:
 						if cidStr != "" {
 							ci, err := cid.Decode(cidStr)
 							checkErr("parsing cid", err)
-							resp, cerr := globalClient.Allocation(ci)
+							resp, cerr := globalClient.Allocation(ctx, ci)
 							formatResponse(c, resp, cerr)
 						} else {
 							var filter api.PinType
@@ -613,7 +623,7 @@ The filter only takes effect when listing all pins. The possible values are:
 								filter |= api.PinTypeFromString(f)
 							}
 
-							resp, cerr := globalClient.Allocations(filter)
+							resp, cerr := globalClient.Allocations(ctx, filter)
 							formatResponse(c, resp, cerr)
 						}
 						return nil
@@ -654,7 +664,7 @@ separated list). The following are valid status values:
 				if cidStr != "" {
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Status(ci, c.Bool("local"))
+					resp, cerr := globalClient.Status(ctx, ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
 					filterFlag := c.String("filter")
@@ -662,7 +672,7 @@ separated list). The following are valid status values:
 					if filter == api.TrackerStatusUndefined && filterFlag != "" {
 						checkErr("parsing filter flag", errors.New("invalid filter name"))
 					}
-					resp, cerr := globalClient.StatusAll(filter, c.Bool("local"))
+					resp, cerr := globalClient.StatusAll(ctx, filter, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil
@@ -695,10 +705,10 @@ operations on the contacted peer. By default, all peers will sync.
 				if cidStr != "" {
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Sync(ci, c.Bool("local"))
+					resp, cerr := globalClient.Sync(ctx, ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.SyncAll(c.Bool("local"))
+					resp, cerr := globalClient.SyncAll(ctx, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil
@@ -727,10 +737,10 @@ operations on the contacted peer (as opposed to on every peer).
 				if cidStr != "" {
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Recover(ci, c.Bool("local"))
+					resp, cerr := globalClient.Recover(ctx, ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.RecoverAll(c.Bool("local"))
+					resp, cerr := globalClient.RecoverAll(ctx, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil
@@ -747,7 +757,7 @@ to check that it matches the CLI version (shown by -v).
 			ArgsUsage: " ",
 			Flags:     []cli.Flag{},
 			Action: func(c *cli.Context) error {
-				resp, cerr := globalClient.Version()
+				resp, cerr := globalClient.Version(ctx)
 				formatResponse(c, resp, cerr)
 				return nil
 			},
@@ -776,7 +786,7 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 						},
 					},
 					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.GetConnectGraph()
+						resp, cerr := globalClient.GetConnectGraph(ctx)
 						if cerr != nil {
 							formatResponse(c, resp, cerr)
 							return nil
@@ -817,7 +827,7 @@ but usually are:
 							checkErr("", errors.New("provide a metric name"))
 						}
 
-						resp, cerr := globalClient.Metrics(metric)
+						resp, cerr := globalClient.Metrics(ctx, metric)
 						formatResponse(c, resp, cerr)
 						return nil
 					},
@@ -918,6 +928,7 @@ func parseCredentials(userInput string) (string, string) {
 }
 
 func handlePinResponseFormatFlags(
+	ctx context.Context,
 	c *cli.Context,
 	ci cid.Cid,
 	target api.TrackerStatus,
@@ -937,7 +948,7 @@ func handlePinResponseFormatFlags(
 
 	if status.Cid == cid.Undef { // no status from "wait"
 		time.Sleep(time.Second)
-		status, cerr = globalClient.Status(ci, false)
+		status, cerr = globalClient.Status(ctx, ci, false)
 	}
 	formatResponse(c, status, cerr)
 }

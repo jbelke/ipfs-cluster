@@ -48,7 +48,8 @@ func testAPI(t *testing.T) *rest.API {
 }
 
 func shutdown(a *rest.API) {
-	a.Shutdown()
+	ctx := context.Background()
+	a.Shutdown(ctx)
 	a.Host().Close()
 }
 
@@ -265,6 +266,7 @@ func TestProxyAddress(t *testing.T) {
 }
 
 func TestIPFS(t *testing.T) {
+	ctx := context.Background()
 	ipfsMock := test.NewIpfsMock()
 	defer ipfsMock.Close()
 
@@ -285,7 +287,7 @@ func TestIPFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	dc := c.(*defaultClient)
-	ipfs := dc.IPFS()
+	ipfs := dc.IPFS(ctx)
 
 	err = ipfs.Pin(test.TestCid1)
 	if err != nil {

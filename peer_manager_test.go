@@ -70,7 +70,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	}
 
 	for i := 1; i < len(clusters); i++ {
-		id, err := clusters[0].PeerAdd(clusters[i].id)
+		id, err := clusters[0].PeerAdd(ctx, clusters[i].id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,7 +90,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
-		ids := c.Peers()
+		ids := c.Peers(ctx)
 
 		// check they are tracked by the peer manager
 		if len(ids) != nClusters {
@@ -99,21 +99,21 @@ func TestClustersPeerAdd(t *testing.T) {
 		}
 
 		// Check that they are part of the consensus
-		pins := c.Pins()
+		pins := c.Pins(ctx)
 		if len(pins) != 1 {
 			t.Log(pins)
 			t.Error("expected 1 pin everywhere")
 		}
 
-		if len(c.ID().ClusterPeers) != nClusters {
-			t.Log(c.ID().ClusterPeers)
+		if len(c.ID(ctx).ClusterPeers) != nClusters {
+			t.Log(c.ID(ctx).ClusterPeers)
 			t.Error("By now cluster peers should reflect all peers")
 		}
 	}
 	runF(t, clusters, f)
 
 	for _, c := range clusters {
-		c.Shutdown()
+		c.Shutdown(ctx)
 	}
 
 	f2 := func(t *testing.T, c *Cluster) {
@@ -138,6 +138,7 @@ func TestClustersPeerAdd(t *testing.T) {
 }
 
 func TestClustersJoinBadPeer(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := peerManagerClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -149,23 +150,24 @@ func TestClustersJoinBadPeer(t *testing.T) {
 
 	// We add a cluster that has been shutdown
 	// (closed transports)
-	clusters[1].Shutdown()
+	clusters[1].Shutdown(ctx)
 
 	// Let the OS actually close the ports.
 	// Sometimes we hang otherwise.
 	delay()
 
-	err := clusters[0].Join(addr)
+	err := clusters[0].Join(ctx, addr)
 	if err == nil {
 		t.Error("expected an error")
 	}
-	ids := clusters[0].Peers()
+	ids := clusters[0].Peers(ctx)
 	if len(ids) != 1 {
 		t.Error("cluster should have only one member")
 	}
 }
 
 func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := peerManagerClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -173,33 +175,34 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 		t.Skip("need at least 3 nodes for this test")
 	}
 
-	_, err := clusters[0].PeerAdd(clusters[1].id)
-	ids := clusters[1].Peers()
+	_, err := clusters[0].PeerAdd(ctx, clusters[1].id)
+	ids := clusters[1].Peers(ctx)
 	if len(ids) != 2 {
 		t.Error("expected 2 peers")
 	}
 
 	// Now we shutdown the one member of the running cluster
 	// and try to add someone else.
-	err = clusters[1].Shutdown()
+	err = clusters[1].Shutdown(ctx)
 	if err != nil {
 		t.Error("Shutdown should be clean: ", err)
 	}
 	delay() // This makes sure the leader realizes
 	//that it's not leader anymore. Otherwise it commits fine.
-	_, err = clusters[0].PeerAdd(clusters[2].id)
+	_, err = clusters[0].PeerAdd(ctx, clusters[2].id)
 
 	if err == nil {
 		t.Error("expected an error")
 	}
 
-	ids = clusters[0].Peers()
+	ids = clusters[0].Peers(ctx)
 	if len(ids) != 2 {
 		t.Error("cluster should still have 2 peers")
 	}
 }
 
 func TestClustersPeerRemove(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := createClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -207,8 +210,8 @@ func TestClustersPeerRemove(t *testing.T) {
 		t.Skip("test needs at least 2 clusters")
 	}
 
-	p := clusters[1].ID().ID
-	err := clusters[0].PeerRemove(p)
+	p := clusters[1].ID(ctx).ID
+	err := clusters[0].PeerRemove(ctx, p)
 	if err != nil {
 		t.Error(err)
 	}
@@ -216,13 +219,13 @@ func TestClustersPeerRemove(t *testing.T) {
 	delay()
 
 	f := func(t *testing.T, c *Cluster) {
-		if c.ID().ID == p { //This is the removed cluster
+		if c.ID(ctx).ID == p { //This is the removed cluster
 			_, ok := <-c.Done()
 			if ok {
 				t.Error("removed peer should have exited")
 			}
 		} else {
-			ids := c.Peers()
+			ids := c.Peers(ctx)
 			if len(ids) != nClusters-1 {
 				t.Error("should have removed 1 peer")
 			}
@@ -233,25 +236,26 @@ func TestClustersPeerRemove(t *testing.T) {
 }
 
 func TestClustersPeerRemoveSelf(t *testing.T) {
+	ctx := context.Background()
 	// this test hangs sometimes if there are problems
 	clusters, mocks := createClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
 	for i := 0; i < len(clusters); i++ {
 		waitForLeaderAndMetrics(t, clusters)
-		peers := clusters[i].Peers()
+		peers := clusters[i].Peers(ctx)
 		t.Logf("Current cluster size: %d", len(peers))
 		if len(peers) != (len(clusters) - i) {
 			t.Fatal("Previous peers not removed correctly")
 		}
-		err := clusters[i].PeerRemove(clusters[i].ID().ID)
+		err := clusters[i].PeerRemove(ctx, clusters[i].ID(ctx).ID)
 		// Last peer member won't be able to remove itself
 		// In this case, we shut it down.
 		if err != nil {
 			if i != len(clusters)-1 { //not last
 				t.Error(err)
 			} else {
-				err := clusters[i].Shutdown()
+				err := clusters[i].Shutdown(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -265,6 +269,7 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 }
 
 func TestClustersPeerRemoveLeader(t *testing.T) {
+	ctx := context.Background()
 	// this test is like the one above, except it always
 	// removes the current leader.
 	// this test hangs sometimes if there are problems
@@ -276,7 +281,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 		for _, c := range clusters {
 			if !c.shutdownB {
 				waitForLeaderAndMetrics(t, clusters)
-				l, _ = c.consensus.Leader()
+				l, _ = c.consensus.Leader(ctx)
 			}
 		}
 		for _, c := range clusters {
@@ -289,19 +294,19 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 
 	for i := 0; i < len(clusters); i++ {
 		leader := findLeader()
-		peers := leader.Peers()
+		peers := leader.Peers(ctx)
 		t.Logf("Current cluster size: %d", len(peers))
 		if len(peers) != (len(clusters) - i) {
 			t.Fatal("Previous peers not removed correctly")
 		}
-		err := leader.PeerRemove(leader.id)
+		err := leader.PeerRemove(ctx, leader.id)
 		// Last peer member won't be able to remove itself
 		// In this case, we shut it down.
 		if err != nil {
 			if i != len(clusters)-1 { //not last
 				t.Error(err)
 			} else {
-				err := leader.Shutdown()
+				err := leader.Shutdown(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -331,7 +336,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	}
 
 	// We choose to remove the leader, to make things even more interesting
-	leaderID, err := clusters[0].consensus.Leader()
+	leaderID, err := clusters[0].consensus.Leader(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +344,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	var leader *Cluster
 	var leaderi int
 	for i, cl := range clusters {
-		if id := cl.ID().ID; id == leaderID {
+		if id := cl.ID(ctx).ID; id == leaderID {
 			leader = cl
 			leaderi = i
 			break
@@ -354,7 +359,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// Remove leader from set
 	clusters = append(clusters[:leaderi], clusters[leaderi+1:]...)
 	mocks = append(mocks[:leaderi], mocks[leaderi+1:]...)
-	defer leader.Shutdown()
+	defer leader.Shutdown(ctx)
 	defer leaderMock.Close()
 
 	tmpCid, _ := cid.Decode(test.TestCid1)
@@ -377,7 +382,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// Find out which pins are associated to the leader.
 	interestingCids := []cid.Cid{}
 
-	pins := leader.Pins()
+	pins := leader.Pins(ctx)
 	if len(pins) != nClusters {
 		t.Fatal("expected number of tracked pins to be nClusters")
 	}
@@ -395,7 +400,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	}
 
 	// Now the leader removes itself
-	err = leader.PeerRemove(leaderID)
+	err = leader.PeerRemove(ctx, leaderID)
 	if err != nil {
 		t.Fatal("error removing peer:", err)
 	}
@@ -406,7 +411,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 
 	for _, icid := range interestingCids {
 		// Now check that the allocations are new.
-		newPin, err := clusters[1].PinGet(icid)
+		newPin, err := clusters[1].PinGet(ctx, icid)
 		if err != nil {
 			t.Fatal("error getting the new allocations for", icid)
 		}
@@ -426,7 +431,7 @@ func TestClustersPeerJoin(t *testing.T) {
 	}
 
 	for i := 1; i < len(clusters); i++ {
-		err := clusters[i].Join(clusterAddr(clusters[0]))
+		err := clusters[i].Join(ctx, clusterAddr(clusters[1]))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -436,11 +441,11 @@ func TestClustersPeerJoin(t *testing.T) {
 	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
-		peers := c.Peers()
+		peers := c.Peers(ctx)
 		if len(peers) != nClusters {
 			t.Error("all peers should be connected")
 		}
-		pins := c.Pins()
+		pins := c.Pins(ctx)
 		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
 			t.Error("all peers should have pinned the cid")
 		}
@@ -458,7 +463,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	}
 
 	f := func(t *testing.T, c *Cluster) {
-		err := c.Join(clusterAddr(clusters[0]))
+		err := c.Join(ctx, clusterAddr(clusters[0]))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -470,11 +475,11 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	pinDelay()
 
 	f2 := func(t *testing.T, c *Cluster) {
-		peers := c.Peers()
+		peers := c.Peers(ctx)
 		if len(peers) != nClusters {
 			t.Error("all peers should be connected")
 		}
-		pins := c.Pins()
+		pins := c.Pins(ctx)
 		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
 			t.Error("all peers should have pinned the cid")
 		}
@@ -546,7 +551,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// add all clusters
 	for i := 1; i < len(clusters); i++ {
-		err := clusters[i].Join(clusterAddr(clusters[0]))
+		err := clusters[i].Join(ctx, clusterAddr(clusters[0]))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -563,7 +568,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 	}
 
 	clusters[0].config.LeaveOnShutdown = true
-	err = clusters[0].Shutdown()
+	err = clusters[0].Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -590,7 +595,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 	c0, m0 := createOnePeerCluster(t, 0, testingClusterSecret)
 	clusters[0] = c0
 	mocks[0] = m0
-	err = c0.Join(clusterAddr(clusters[1]))
+	err = c0.Join(ctx, clusterAddr(clusters[1]))
 	if err != nil {
 		t.Fatal(err)
 	}
