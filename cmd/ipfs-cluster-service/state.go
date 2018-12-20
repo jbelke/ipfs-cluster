@@ -8,12 +8,12 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/gxed/opencensus-go/trace"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
-	"go.opencensus.io/trace"
 )
 
 var errNoSnapshot = errors.New("no snapshot found")

@@ -58,6 +58,14 @@ func daemon(c *cli.Context) error {
 		} // otherwise continue
 	}
 
+	if c.Bool("stats") {
+		cfgs.obsCfg.EnableStats = true
+	}
+
+	if c.Bool("tracing") {
+		cfgs.obsCfg.EnableTracing = true
+	}
+
 	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
 
 	// Execution lock

@@ -58,9 +58,6 @@ func (c *defaultClient) doRequest(
 	)
 	defer span.End()
 
-	logger.Errorf(">>>>>>>>>> doRequest: ctx: %v\n", ctx)
-	logger.Errorf(">>>>>>>>>> doRequest: span: %v\n", span)
-
 	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 

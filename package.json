@@ -45,9 +45,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmWxpSK4UeEAKxFZyquP8gq3PmuEbq2u937thjnKeUcfMV",
+      "hash": "QmeZoNDg6yos4DESSzHsYNXKwjLomUxK2CL9PPxAjPj5iJ",
       "name": "go-libp2p-gorpc",
-      "version": "1.1.2"
+      "version": "1.1.0"
     },
     {
       "author": "libp2p",
@@ -164,15 +164,15 @@
     },
     {
       "author": "lanzafame",
-      "hash": "QmNcLxoqjNogpiX1FzLozdPCdaqkdJjmZjKZk9WqcmuucK",
-      "name": "opencensus-go",
-      "version": "0.0.5"
+      "hash": "QmSpbtvXbLFY3tsDT5XD9zcWkiwgDa7wxYWtjhVeoQFMRy",
+      "name": "go-libp2p-ocgorpc",
+      "version": "0.1.3"
     },
     {
       "author": "lanzafame",
-      "hash": "QmeJTNG1rcnwmV2EUQtL2vukbkk6Hk4WNAdqzyJ8eB8fZ8",
-      "name": "go-libp2p-ocgorpc",
-      "version": "0.1.2"
+      "hash": "QmUfweMsFkBY84W8s462fkcfkUt9fygHVi8fBfwMqoCZZ3",
+      "name": "opencensus-go",
+      "version": "0.0.5"
     }
   ],
   "gxVersion": "0.11.0",

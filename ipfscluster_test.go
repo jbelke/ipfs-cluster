@@ -163,7 +163,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 
 	api, err := rest.NewAPI(ctx, apiCfg)
 	checkErr(t, err)
-	ipfsProxy, err := rest.NewAPI(apiCfg)
+	ipfsProxy, err := rest.NewAPI(ctx, apiCfg)
 	checkErr(t, err)
 
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)

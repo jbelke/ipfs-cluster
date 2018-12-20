@@ -8,8 +8,8 @@ import (
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
+	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/api"
-	"go.opencensus.io/trace"
 )
 
 // MetricName specifies the name of our metric

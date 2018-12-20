@@ -169,7 +169,7 @@ func (c *defaultClient) Status(ctx context.Context, ci cid.Cid, local bool) (api
 // will be returned. A filter can be built by merging TrackerStatuses with
 // a bitwise OR operation (st1 | st2 | ...). A "0" filter value (or
 // api.TrackerStatusUndefined), means all.
-func (c *defaultClient) StatusAll(filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error) {
+func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "client/StatusAll")
 	defer span.End()
 

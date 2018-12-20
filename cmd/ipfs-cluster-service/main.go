@@ -285,8 +285,12 @@ configuration.
 					Usage:  "pintracker to use [map,stateless].",
 				},
 				cli.BoolFlag{
-					Name:  "metrics",
-					Usage: "enable metrics collection",
+					Name:  "stats",
+					Usage: "enable stats collection",
+				},
+				cli.BoolFlag{
+					Name:  "tracing",
+					Usage: "enable tracing collection",
 				},
 			},
 			Action: daemon,

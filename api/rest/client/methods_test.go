@@ -241,7 +241,7 @@ func TestStatusAll(t *testing.T) {
 		}
 
 		// With local true
-		pins, err = c.StatusAll(0, true)
+		pins, err = c.StatusAll(ctx, 0, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -250,7 +250,7 @@ func TestStatusAll(t *testing.T) {
 		}
 
 		// With filter option
-		pins, err = c.StatusAll(types.TrackerStatusPinning, false)
+		pins, err = c.StatusAll(ctx, types.TrackerStatusPinning, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,7 +258,7 @@ func TestStatusAll(t *testing.T) {
 			t.Error("there should be one pin")
 		}
 
-		pins, err = c.StatusAll(types.TrackerStatusPinned|types.TrackerStatusError, false)
+		pins, err = c.StatusAll(ctx, types.TrackerStatusPinned|types.TrackerStatusError, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -266,7 +266,7 @@ func TestStatusAll(t *testing.T) {
 			t.Error("there should be two pins")
 		}
 
-		pins, err = c.StatusAll(1<<25, false)
+		pins, err = c.StatusAll(ctx, 1<<25, false)
 		if err == nil {
 			t.Error("expected an error")
 		}
@@ -371,7 +371,7 @@ func TestMetrics(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		m, err := c.Metrics("somemetricstype")
+		m, err := c.Metrics(context.TODO(), "somemetricstype")
 		if err != nil {
 			t.Fatal(err)
 		}

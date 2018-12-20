@@ -216,7 +216,7 @@ func (proxy *Server) SetClient(c *rpc.Client) {
 
 // Shutdown stops any listeners and stops the component from taking
 // any requests.
-func (proxy *Server) Shutdown() error {
+func (proxy *Server) Shutdown(ctx context.Context) error {
 	proxy.shutdownLock.Lock()
 	defer proxy.shutdownLock.Unlock()
 

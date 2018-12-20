@@ -479,7 +479,7 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 
 func TestAPIAddFileEndpoint_StreamChannelsFalse(t *testing.T) {
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(context.TODO())
 
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
@@ -649,7 +649,7 @@ func TestAPIAllocationEndpoint(t *testing.T) {
 
 func TestAPIMetricsEndpoint(t *testing.T) {
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(context.TODO())
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.MetricSerial

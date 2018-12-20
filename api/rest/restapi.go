@@ -1086,22 +1086,6 @@ func startHandlerSpan(r *http.Request, name string) (context.Context, *trace.Spa
 	spanCtx := trace.FromContext(r.Context()).SpanContext()
 	ctx := tag.NewContext(context.Background(), tagmap)
 	ctx, span := trace.StartSpanWithRemoteParent(ctx, name, spanCtx)
-	logger.Errorf(">>>>>>>>>>> request context: %v\n", r.Context())
-	logger.Errorf(">>>>>>>>>>> request span: %v\n", span)
 	span.AddAttributes(trace.StringAttribute("client-ip", r.RemoteAddr))
 	return ctx, span
 }
-
-// func startHandlerSpan(r *http.Request, name string) (context.Context, *trace.Span) {
-// 	ctx := context.Background()
-// 	tc := &tracecontext.HTTPFormat{}
-// 	sc, ok := tc.SpanContextFromRequest(r)
-// 	var span *trace.Span
-// 	if ok {
-// 		ctx, span = trace.StartSpanWithRemoteParent(ctx, name, sc, trace.WithSpanKind(trace.SpanKindServer))
-// 	} else {
-// 		ctx, span = trace.StartSpan(r.Context(), name, trace.WithSpanKind(trace.SpanKindServer))
-// 	}
-// 	span.AddAttributes(trace.StringAttribute("client-ip", r.RemoteAddr))
-// 	return ctx, span
-// }

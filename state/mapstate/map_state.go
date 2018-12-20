@@ -15,8 +15,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 
+	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/api"
-	"go.opencensus.io/trace"
 )
 
 // Version is the map state Version. States with old versions should
