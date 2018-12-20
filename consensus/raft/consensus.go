@@ -226,7 +226,7 @@ func (cc *Consensus) op(ctx context.Context, pin api.Pin, t LogOpType) *LogOp {
 // note that if the leader just dissappeared, the rpc call will
 // fail because we haven't heard that it's gone.
 func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, error) {
-	ctx, span := trace.StartSpan(cc.ctx, "consensus/WaitForSync")
+	ctx, span := trace.StartSpan(cc.ctx, "consensus/redirectToLeader")
 	defer span.End()
 
 	var finalErr error
