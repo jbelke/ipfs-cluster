@@ -704,10 +704,10 @@ func (pT PinType) String() string {
 
 // PinOptions wraps user-defined options for Pins
 type PinOptions struct {
-	ReplicationFactorMin int    `json:"replication_factor_min"`
-	ReplicationFactorMax int    `json:"replication_factor_max"`
-	Name                 string `json:"name"`
-	ShardSize            uint64 `json:"shard_size"`
+	ReplicationFactorMin int    `json:"replication_factor_min" codec:"rn,omitempty"`
+	ReplicationFactorMax int    `json:"replication_factor_max" codec:"rx,omitempty"`
+	Name                 string `json:"name" codec:"n,omitempty"`
+	ShardSize            uint64 `json:"shard_size" codec:"s,omitempty"`
 }
 
 // Pin carries all the information associated to a CID that is pinned
@@ -760,11 +760,11 @@ func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
 type PinSerial struct {
 	PinOptions
 
-	Cid         string   `json:"cid"`
-	Type        uint64   `json:"type"`
-	Allocations []string `json:"allocations"`
-	MaxDepth    int      `json:"max_depth"`
-	Reference   string   `json:"reference"`
+	Cid         string   `json:"cid" codec:"c,omitempty"`
+	Type        uint64   `json:"type" codec:"t,omitempty"`
+	Allocations []string `json:"allocations" codec:"a,omitempty"`
+	MaxDepth    int      `json:"max_depth" codec:"d,omitempty"`
+	Reference   string   `json:"reference" codec:"r,omitempty"`
 }
 
 // ToSerial converts a Pin to PinSerial.

@@ -2,6 +2,7 @@ package mapstate
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
@@ -51,12 +52,21 @@ func TestGet(t *testing.T) {
 	}()
 	ms := NewMapState()
 	ms.Add(c)
-	get, _ := ms.Get(c.Cid)
-	if get.Cid.String() != c.Cid.String() ||
-		get.Allocations[0] != c.Allocations[0] ||
-		get.ReplicationFactorMax != c.ReplicationFactorMax ||
+	get, ok := ms.Get(c.Cid)
+	if !ok {
+		t.Fatal("not found")
+	}
+	if get.Cid.String() != c.Cid.String() {
+		t.Error("bad cid decoding: ", get.Cid)
+	}
+
+	if get.Allocations[0] != c.Allocations[0] {
+		t.Error("bad allocations decoding:", get.Allocations)
+	}
+
+	if get.ReplicationFactorMax != c.ReplicationFactorMax ||
 		get.ReplicationFactorMin != c.ReplicationFactorMin {
-		t.Error("returned something different")
+		t.Error("bad replication factors decoding")
 	}
 }
 
@@ -80,21 +90,28 @@ func TestList(t *testing.T) {
 func TestMarshalUnmarshal(t *testing.T) {
 	ms := NewMapState()
 	ms.Add(c)
-	b, err := ms.Marshal()
+	buf := new(bytes.Buffer)
+	err := ms.Marshal(context.Background(), buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ms2 := NewMapState()
-	err = ms2.Unmarshal(b)
+	err = ms2.Unmarshal(context.Background(), buf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ms.Version != ms2.Version {
+	if ms.GetVersion() != ms2.GetVersion() {
 		t.Fatal(err)
 	}
-	get, _ := ms2.Get(c.Cid)
+	get, ok := ms2.Get(c.Cid)
+	if !ok {
+		t.Fatal("cannot get pin")
+	}
 	if get.Allocations[0] != testPeerID1 {
 		t.Error("expected different peer id")
+	}
+	if !get.Cid.Equals(c.Cid) {
+		t.Error("expected different cid")
 	}
 }
 
@@ -114,13 +131,14 @@ func TestMigrateFromV1(t *testing.T) {
 	vCodec[0] = byte(v1State.Version)
 	v1Bytes := append(vCodec, buf.Bytes()...)
 
+	buf2 := bytes.NewBuffer(v1Bytes)
 	// Unmarshal first to check this is v1
 	ms := NewMapState()
-	err = ms.Unmarshal(v1Bytes)
+	err = ms.Unmarshal(context.Background(), buf2)
 	if err != nil {
 		t.Error(err)
 	}
-	if ms.Version != 1 {
+	if ms.GetVersion() != 1 {
 		t.Error("unmarshal picked up the wrong version")
 	}
 	// Migrate state to current version

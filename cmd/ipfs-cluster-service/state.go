@@ -2,15 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -51,7 +52,7 @@ func export(w io.Writer) error {
 // restoreStateFromDisk returns a mapstate containing the latest
 // snapshot, a flag set to true when the state format has the
 // current version and an error
-func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
+func restoreStateFromDisk() (state.State, bool, error) {
 	cfgMgr, cfgs := makeConfigs()
 
 	err := cfgMgr.LoadJSONFromFile(configPath)
@@ -71,11 +72,7 @@ func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
 	// duplicate reader to both check version and migrate
 	var buf bytes.Buffer
 	r2 := io.TeeReader(r, &buf)
-	raw, err := ioutil.ReadAll(r2)
-	if err != nil {
-		return nil, false, err
-	}
-	err = stateFromSnap.Unmarshal(raw)
+	err = stateFromSnap.Unmarshal(context.Background(), r2)
 	if err != nil {
 		return nil, false, err
 	}
@@ -127,11 +124,7 @@ func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {
 	} else if snapExists && err != nil {
 		logger.Error("error after reading last snapshot. Snapshot potentially corrupt.")
 	} else if snapExists && err == nil {
-		raw, err2 := ioutil.ReadAll(r)
-		if err2 != nil {
-			return err2
-		}
-		err2 = state.Unmarshal(raw)
+		err2 := state.Unmarshal(context.Background(), r)
 		if err2 != nil {
 			logger.Error("error unmarshalling snapshot. Snapshot potentially corrupt.")
 			return err2
@@ -150,7 +143,7 @@ func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {
 }
 
 // ExportState saves a json representation of a state
-func exportState(state *mapstate.MapState, w io.Writer) error {
+func exportState(state state.State, w io.Writer) error {
 	// Serialize pins
 	pins := state.List()
 	pinSerials := make([]api.PinSerial, len(pins), len(pins))
