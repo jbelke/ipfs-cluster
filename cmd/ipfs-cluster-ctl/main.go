@@ -18,7 +18,6 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
-	"github.com/ipfs/ipfs-cluster/observations"
 	uuid "github.com/satori/go.uuid"
 
 	cid "github.com/ipfs/go-cid"
@@ -184,12 +183,14 @@ requires authorization. implies --https, which you can disable with --force-http
 		globalClient, err = client.NewDefaultClient(cfg)
 		checkErr("creating API client", err)
 
-		tracingCfg := &observations.Config{}
-		tracingCfg.Default()
-		tracingCfg.EnableTracing = true
-		tracingCfg.TracingServiceName = "cluster-ctl"
-		tracingCfg.TracingSamplingProb = 1
-		tracer = observations.SetupTracing(tracingCfg)
+		// TODO: need to figure out best way to configure tracing for ctl
+		// leaving the following as it is still useful for local debugging.
+		// tracingCfg := &observations.Config{}
+		// tracingCfg.Default()
+		// tracingCfg.EnableTracing = true
+		// tracingCfg.TracingServiceName = "cluster-ctl"
+		// tracingCfg.TracingSamplingProb = 1
+		// tracer = observations.SetupTracing(tracingCfg)
 		return nil
 	}
 	app.After = func(c *cli.Context) error {
