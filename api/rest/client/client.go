@@ -40,7 +40,10 @@ var loggingFacility = "apiclient"
 var logger = logging.Logger(loggingFacility)
 
 // Client interface defines the interface to be used by API clients to
-// interact with the ipfs-cluster-service
+// interact with the ipfs-cluster-service. All methods take a
+// context.Context as their first parameter, this allows for
+// timing out and cancelling of requests as well as recording
+// metrics and tracing of requests through the API.
 type Client interface {
 	// ID returns information about the cluster Peer.
 	ID(context.Context) (api.ID, error)
