@@ -367,11 +367,12 @@ func TestGetConnectGraph(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
+	ctx := context.Background()
 	api := testAPI(t)
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		m, err := c.Metrics(context.TODO(), "somemetricstype")
+		m, err := c.Metrics(ctx, "somemetricstype")
 		if err != nil {
 			t.Fatal(err)
 		}
