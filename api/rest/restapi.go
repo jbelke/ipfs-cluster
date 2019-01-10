@@ -23,7 +23,7 @@ import (
 
 	"github.com/rs/cors"
 	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/tag"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
@@ -127,11 +127,10 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
 		Handler: &ochttp.Handler{
-			// Propagation:      &tracecontext.HTTPFormat{},
-			Handler:          router,
-			StartOptions:     trace.StartOptions{SpanKind: trace.SpanKindServer},
-			IsPublicEndpoint: true,
-			FormatSpanName:   func(req *http.Request) string { return "api::" + req.URL.Path },
+			Propagation:    &tracecontext.HTTPFormat{},
+			Handler:        router,
+			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindServer},
+			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
 		},
 	}
 
@@ -247,7 +246,12 @@ func (api *API) addRoutes(router *mux.Router) {
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(ochttp.WithRouteTag(http.HandlerFunc(route.HandlerFunc), "/"+route.Name))
+			Handler(
+				ochttp.WithRouteTag(
+					http.HandlerFunc(route.HandlerFunc),
+					"/"+route.Name,
+				),
+			)
 	}
 	api.router = router
 }
@@ -1078,13 +1082,4 @@ func (api *API) setHeaders(w http.ResponseWriter) {
 	}
 
 	w.Header().Add("Content-Type", "application/json")
-}
-
-func startHandlerSpan(r *http.Request, name string) (context.Context, *trace.Span) {
-	tagmap := tag.FromContext(r.Context())
-	spanCtx := trace.FromContext(r.Context()).SpanContext()
-	ctx := tag.NewContext(context.Background(), tagmap)
-	ctx, span := trace.StartSpanWithRemoteParent(ctx, name, spanCtx)
-	span.AddAttributes(trace.StringAttribute("client-ip", r.RemoteAddr))
-	return ctx, span
 }

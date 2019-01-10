@@ -23,6 +23,7 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 
 	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/trace"
 )
 
@@ -297,10 +298,10 @@ func (c *defaultClient) setupHTTPClient() error {
 
 	c.client = &http.Client{
 		Transport: &ochttp.Transport{
-			Base: c.transport,
-			// Propagation:    &tracecontext.HTTPFormat{},
+			Base:           c.transport,
+			Propagation:    &tracecontext.HTTPFormat{},
 			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindClient},
-			FormatSpanName: func(req *http.Request) string { return "client::" + req.URL.Path },
+			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
 			NewClientTrace: ochttp.NewSpanAnnotatingClientTrace,
 		},
 		Timeout: c.config.Timeout,

@@ -186,6 +186,7 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		tracingCfg := &observations.Config{}
 		tracingCfg.Default()
+		tracingCfg.EnableTracing = true
 		tracingCfg.TracingServiceName = "cluster-ctl"
 		tracingCfg.TracingSamplingProb = 1
 		tracer = observations.SetupTracing(tracingCfg)
