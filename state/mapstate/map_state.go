@@ -122,7 +122,7 @@ func (st *MapState) Migrate(ctx context.Context, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	err = st.Unmarshal(ctx, bs)
+	err = st.Unmarshal(bs)
 	if err != nil {
 		return err
 	}
@@ -145,9 +145,10 @@ func (st *MapState) GetVersion() int {
 }
 
 // Marshal encodes the state using msgpack
-func (st *MapState) Marshal(ctx context.Context) ([]byte, error) {
-	ctx, span := trace.StartSpan(ctx, "state/map/Marshal")
-	defer span.End()
+func (st *MapState) Marshal() ([]byte, error) {
+	// FIXME: Re-enable this span when raft Marshable interface has contexts
+	//ctx, span := trace.StartSpan(ctx, "state/map/Marshal")
+	//defer span.End()
 
 	logger.Debugf("Marshal-- Marshalling state of version %d", st.Version)
 	buf := new(bytes.Buffer)
@@ -160,7 +161,7 @@ func (st *MapState) Marshal(ctx context.Context) ([]byte, error) {
 	vCodec := make([]byte, 1)
 	vCodec[0] = byte(st.Version)
 	ret := append(vCodec, buf.Bytes()...)
-	// logger.Debugf("Marshal-- The final marshaled bytes: %x", ret)
+	//logger.Debugf("Marshal-- The final marshaled bytes: %x\n", ret)
 	return ret, nil
 }
 
@@ -169,9 +170,10 @@ func (st *MapState) Marshal(ctx context.Context) ([]byte, error) {
 // are stored within the state's internal reader, which can be migrated
 // to the current version in a later call to restore.  Note: Out of date
 // version is not an error
-func (st *MapState) Unmarshal(ctx context.Context, bs []byte) error {
-	ctx, span := trace.StartSpan(ctx, "state/map/Unmarshal")
-	defer span.End()
+func (st *MapState) Unmarshal(bs []byte) error {
+	// FIXME: Re-enable this span when raft Marshable interface has contexts
+	// ctx, span := trace.StartSpan(ctx, "state/map/Unmarshal")
+	// defer span.End()
 
 	// Check version byte
 	// logger.Debugf("The incoming bytes to unmarshal: %x", bs)

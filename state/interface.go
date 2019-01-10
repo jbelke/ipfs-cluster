@@ -30,7 +30,7 @@ type State interface {
 	// Return the version of this state
 	GetVersion() int
 	// Marshal serializes the state to a byte slice
-	Marshal(context.Context) ([]byte, error)
+	Marshal() ([]byte, error)
 	// Unmarshal deserializes the state from marshaled bytes
-	Unmarshal(context.Context, []byte) error
+	Unmarshal([]byte) error
 }

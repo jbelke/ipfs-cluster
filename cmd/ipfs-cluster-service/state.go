@@ -86,7 +86,7 @@ func restoreStateFromDisk(ctx context.Context) (*mapstate.MapState, bool, error)
 	if err != nil {
 		return nil, false, err
 	}
-	err = stateFromSnap.Unmarshal(ctx, raw)
+	err = stateFromSnap.Unmarshal(raw)
 	if err != nil {
 		return nil, false, err
 	}
@@ -148,7 +148,7 @@ func validateVersion(ctx context.Context, cfg *ipfscluster.Config, cCfg *raft.Co
 		if err2 != nil {
 			return err2
 		}
-		err2 = state.Unmarshal(ctx, raw)
+		err2 = state.Unmarshal(raw)
 		if err2 != nil {
 			logger.Error("error unmarshalling snapshot. Snapshot potentially corrupt.")
 			return err2

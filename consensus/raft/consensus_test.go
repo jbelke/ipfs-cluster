@@ -316,7 +316,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	}
 	err = snapState.Migrate(ctx, r)
 	if err != nil {
-		t.Fatal("Snapshot bytes returned could not restore to state")
+		t.Fatal("Snapshot bytes returned could not restore to state: ", err)
 	}
 	pins := snapState.List(ctx)
 	if len(pins) != 3 {

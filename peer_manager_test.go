@@ -431,7 +431,7 @@ func TestClustersPeerJoin(t *testing.T) {
 	}
 
 	for i := 1; i < len(clusters); i++ {
-		err := clusters[i].Join(ctx, clusterAddr(clusters[1]))
+		err := clusters[i].Join(ctx, clusterAddr(clusters[0]))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -440,8 +440,17 @@ func TestClustersPeerJoin(t *testing.T) {
 	clusters[0].Pin(ctx, api.PinCid(hash))
 	pinDelay()
 
+	for _, p := range clusters {
+		t.Log(p.id.String())
+	}
+
 	f := func(t *testing.T, c *Cluster) {
 		peers := c.Peers(ctx)
+		str := c.id.String() + "\n"
+		for _, p := range peers {
+			str += "  - " + p.ID.String() + "\n"
+		}
+		t.Log(str)
 		if len(peers) != nClusters {
 			t.Error("all peers should be connected")
 		}

@@ -86,12 +86,12 @@ func TestMarshalUnmarshal(t *testing.T) {
 	ctx := context.Background()
 	ms := NewMapState()
 	ms.Add(ctx, c)
-	b, err := ms.Marshal(ctx)
+	b, err := ms.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
 	ms2 := NewMapState()
-	err = ms2.Unmarshal(ctx, b)
+	err = ms2.Unmarshal(b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestMigrateFromV1(t *testing.T) {
 
 	// Unmarshal first to check this is v1
 	ms := NewMapState()
-	err = ms.Unmarshal(ctx, v1Bytes)
+	err = ms.Unmarshal(v1Bytes)
 	if err != nil {
 		t.Error(err)
 	}
