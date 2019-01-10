@@ -5,7 +5,7 @@ import (
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
-	"github.com/gxed/opencensus-go/trace"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

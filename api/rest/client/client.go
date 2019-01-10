@@ -22,8 +22,8 @@ import (
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
 
-	"github.com/gxed/opencensus-go/plugin/ochttp"
-	"github.com/gxed/opencensus-go/trace"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
 )
 
 // Configuration defaults

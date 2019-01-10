@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gxed/opencensus-go/trace"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 

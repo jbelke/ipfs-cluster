@@ -7,8 +7,8 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 
-	"github.com/gxed/opencensus-go/trace"
 	"github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/trace"
 )
 
 //go:generate stringer -type=OperationType

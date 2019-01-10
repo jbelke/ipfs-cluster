@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gxed/opencensus-go/tag"
-	"github.com/gxed/opencensus-go/trace"
+	"go.opencensus.io/tag"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"

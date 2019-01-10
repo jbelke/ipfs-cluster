@@ -164,15 +164,21 @@
     },
     {
       "author": "lanzafame",
-      "hash": "QmSpbtvXbLFY3tsDT5XD9zcWkiwgDa7wxYWtjhVeoQFMRy",
+      "hash": "QmQR89j8wi2BCbvx9XAEVVzLZ7BbaP48xvP2yiBWc7sPoP",
+      "name": "opencensus-go",
+      "version": "0.0.1"
+    },
+    {
+      "author": "lanzafame",
+      "hash": "QmV1oiHRVrzHFGw4ucpdhaNGhZiHnK5PDmArYKjxC9KAmf",
       "name": "go-libp2p-ocgorpc",
       "version": "0.1.3"
     },
     {
-      "author": "lanzafame",
-      "hash": "QmUfweMsFkBY84W8s462fkcfkUt9fygHVi8fBfwMqoCZZ3",
-      "name": "opencensus-go",
-      "version": "0.0.5"
+      "author": "whyrusleeping",
+      "hash": "QmTQuFQWHAWy4wMH6ZyPfGiawA5u9T8rs79FENoV8yXaoS",
+      "name": "client_golang",
+      "version": "0.1.4"
     }
   ],
   "gxVersion": "0.11.0",

@@ -17,8 +17,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
 
-	"github.com/gxed/opencensus-go/stats"
-	"github.com/gxed/opencensus-go/trace"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/trace"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"

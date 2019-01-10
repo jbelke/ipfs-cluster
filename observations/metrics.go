@@ -1,9 +1,9 @@
 package observations
 
 import (
-	"github.com/gxed/opencensus-go/stats"
-	"github.com/gxed/opencensus-go/stats/view"
-	"github.com/gxed/opencensus-go/tag"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 
 	logging "github.com/ipfs/go-log"
 )

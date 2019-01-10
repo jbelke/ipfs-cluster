@@ -6,14 +6,15 @@ import (
 	"net/http/pprof"
 	"os"
 
-	prom "github.com/gxed/client_golang/prometheus"
-	"github.com/gxed/opencensus-go/exporter/jaeger"
-	"github.com/gxed/opencensus-go/exporter/prometheus"
-	"github.com/gxed/opencensus-go/plugin/ochttp"
-	"github.com/gxed/opencensus-go/stats/view"
-	"github.com/gxed/opencensus-go/trace"
-	"github.com/gxed/opencensus-go/zpages"
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
+	"go.opencensus.io/exporter/jaeger"
+	"go.opencensus.io/exporter/prometheus"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/trace"
+	"go.opencensus.io/zpages"
+
+	prom "github.com/prometheus/client_golang/prometheus"
 )
 
 // Setup configures and starts stats and tracing tooling,

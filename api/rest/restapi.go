@@ -22,10 +22,9 @@ import (
 	"time"
 
 	"github.com/rs/cors"
-
-	"github.com/gxed/opencensus-go/plugin/ochttp"
-	"github.com/gxed/opencensus-go/tag"
-	"github.com/gxed/opencensus-go/trace"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/tag"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"

@@ -1,8 +1,8 @@
 package ipfscluster
 
 import (
-	"github.com/gxed/opencensus-go/trace"
 	peer "github.com/libp2p/go-libp2p-peer"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
