@@ -164,13 +164,13 @@
     },
     {
       "author": "lanzafame",
-      "hash": "QmQR89j8wi2BCbvx9XAEVVzLZ7BbaP48xvP2yiBWc7sPoP",
+      "hash": "QmSc6ApuHeiaqLngoTcPX2gmegTyJGjZgs7nnFQRf5vJsL",
       "name": "opencensus-go",
       "version": "0.0.1"
     },
     {
       "author": "lanzafame",
-      "hash": "QmV1oiHRVrzHFGw4ucpdhaNGhZiHnK5PDmArYKjxC9KAmf",
+      "hash": "QmVT7A1TJ1TNEsv2KFk9jr1HWaXHSNLqowrSx4tKU3suLX",
       "name": "go-libp2p-ocgorpc",
       "version": "0.1.3"
     },
