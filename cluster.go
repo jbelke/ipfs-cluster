@@ -1204,8 +1204,14 @@ func (c *Cluster) Version() string {
 
 // Peers returns the IDs of the members of this Cluster.
 func (c *Cluster) Peers(ctx context.Context) []api.ID {
-	ctx, span := trace.StartSpan(ctx, "cluster/Peers")
+	// To keep global shutdown semantics, create span from
+	// inbound ctx parameter. Then create a new ctx, with the
+	// *Cluster.ctx as its parent and adding the span data to
+	// it. This way the span data is propagated and so is the
+	// context tree for the purpose of cancelling any requests.
+	_, span := trace.StartSpan(ctx, "cluster/Peers")
 	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
 
 	members, err := c.consensus.Peers(ctx)
 	if err != nil {
