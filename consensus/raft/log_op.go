@@ -35,13 +35,18 @@ type LogOp struct {
 
 // ApplyTo applies the operation to the State
 func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
-	tagmap, err := tag.Decode(op.TagCtx)
-	if err != nil {
-		logger.Error(err)
+	var err error
+	ctx := context.Background()
+	if tracing {
+		tagmap, err := tag.Decode(op.TagCtx)
+		if err != nil {
+			logger.Error(err)
+		}
+		ctx = tag.NewContext(ctx, tagmap)
+		var span *trace.Span
+		ctx, span = trace.StartSpanWithRemoteParent(ctx, "consensus/raft/logop/ApplyTo", op.SpanCtx)
+		defer span.End()
 	}
-	ctx := tag.NewContext(context.Background(), tagmap)
-	ctx, span := trace.StartSpanWithRemoteParent(ctx, "consensus/raft/logop/ApplyTo", op.SpanCtx)
-	defer span.End()
 
 	state, ok := cstate.(state.State)
 	if !ok {

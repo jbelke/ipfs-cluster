@@ -17,21 +17,25 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 
-// Setup configures and starts stats and tracing tooling,
+// SetupMetrics configures and starts stats tooling,
 // if enabled.
-func Setup(cfg *Config) {
+func SetupMetrics(cfg *MetricsConfig) {
 	if cfg.EnableStats {
 		logger.Error("stats collection enabled...")
 		setupMetrics(cfg)
 	}
+}
 
+// SetupTracing configures and starts tracing tooling,
+// if enabled.
+func SetupTracing(cfg *TracingConfig) {
 	if cfg.EnableTracing {
 		logger.Error("tracing enabled...")
-		SetupTracing(cfg)
+		setupTracing(cfg)
 	}
 }
 
-func setupMetrics(cfg *Config) {
+func setupMetrics(cfg *MetricsConfig) {
 	// setup Prometheus
 	registry := prom.NewRegistry()
 	goCollector := prom.NewGoCollector()
@@ -96,8 +100,8 @@ func setupMetrics(cfg *Config) {
 	}()
 }
 
-// SetupTracing configures a OpenCensus Tracing exporter for Jaeger.
-func SetupTracing(cfg *Config) *jaeger.Exporter {
+// setupTracing configures a OpenCensus Tracing exporter for Jaeger.
+func setupTracing(cfg *TracingConfig) *jaeger.Exporter {
 	// setup Jaeger
 	je, err := jaeger.NewExporter(jaeger.Options{
 		AgentEndpoint: cfg.JaegerAgentEndpoint,

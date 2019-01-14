@@ -58,14 +58,6 @@ func daemon(c *cli.Context) error {
 		} // otherwise continue
 	}
 
-	if c.Bool("stats") {
-		cfgs.obsCfg.EnableStats = true
-	}
-
-	if c.Bool("tracing") {
-		cfgs.obsCfg.EnableTracing = true
-	}
-
 	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
 
 	// Execution lock
@@ -79,6 +71,12 @@ func daemon(c *cli.Context) error {
 
 	err = cfgMgr.LoadJSONFromFile(configPath)
 	checkErr("loading configuration", err)
+
+	if c.Bool("stats") {
+		cfgs.metricsCfg.EnableStats = true
+	}
+
+	cfgs = propagateTracingConfig(cfgs, c.Bool("tracing"))
 
 	// Cleanup state if bootstrapping
 	raftStaging := false
@@ -110,7 +108,9 @@ func createCluster(
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
-	observations.Setup(cfgs.obsCfg)
+	observations.SetupMetrics(cfgs.metricsCfg)
+	observations.SetupTracing(cfgs.tracingCfg)
+
 	host, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
 

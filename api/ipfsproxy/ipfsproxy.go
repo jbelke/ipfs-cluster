@@ -16,6 +16,10 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
+	"github.com/ipfs/ipfs-cluster/version"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
+	"go.opencensus.io/trace"
 
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
@@ -134,6 +138,16 @@ func New(cfg *Config) (*Server, error) {
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
 		Handler:           router,
+	}
+	if cfg.Tracing {
+		s.Handler = &ochttp.Handler{
+			Propagation:  &tracecontext.HTTPFormat{},
+			Handler:      smux,
+			StartOptions: trace.StartOptions{SpanKind: trace.SpanKindServer},
+			FormatSpanName: func(req *http.Request) string {
+				return "proxy:" + req.Host + ":" + req.URL.Path + ":" + req.Method
+			},
+		}
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168

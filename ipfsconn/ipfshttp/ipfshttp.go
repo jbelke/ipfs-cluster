@@ -17,6 +17,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
 
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 
@@ -119,6 +121,14 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	}
 
 	c := &http.Client{} // timeouts are handled by context timeouts
+	if cfg.Tracing {
+		c.Transport = &ochttp.Transport{
+			Propagation:    &tracecontext.HTTPFormat{},
+			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindClient},
+			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
+			NewClientTrace: ochttp.NewSpanAnnotatingClientTrace,
+		}
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 

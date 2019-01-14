@@ -7,14 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"go.opencensus.io/exporter/jaeger"
-	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
@@ -979,32 +977,32 @@ func waitFor(
 	return client.WaitFor(ctx, globalClient, fp)
 }
 
-func setupTracing(config tracingConfig) {
-	if !config.Enable {
-		return
-	}
+// func setupTracing(config tracingConfig) {
+// 	if !config.Enable {
+// 		return
+// 	}
 
-	agentEndpointURI := "0.0.0.0:6831"
-	collectorEndpointURI := "http://0.0.0.0:14268"
+// 	agentEndpointURI := "0.0.0.0:6831"
+// 	collectorEndpointURI := "http://0.0.0.0:14268"
 
-	if config.JaegerAgentEndpoint != "" {
-		agentEndpointURI = config.JaegerAgentEndpoint
-	}
-	if config.JaegerCollectorEndpoint != "" {
-		collectorEndpointURI = config.JaegerCollectorEndpoint
-	}
+// 	if config.JaegerAgentEndpoint != "" {
+// 		agentEndpointURI = config.JaegerAgentEndpoint
+// 	}
+// 	if config.JaegerCollectorEndpoint != "" {
+// 		collectorEndpointURI = config.JaegerCollectorEndpoint
+// 	}
 
-	je, err := jaeger.NewExporter(jaeger.Options{
-		AgentEndpoint:     agentEndpointURI,
-		CollectorEndpoint: collectorEndpointURI,
-		ServiceName:       "ipfs-cluster-ctl",
-	})
-	if err != nil {
-		log.Fatalf("Failed to create the Jaeger exporter: %v", err)
-	}
-	// Register/enable the trace exporter
-	trace.RegisterExporter(je)
+// 	je, err := jaeger.NewExporter(jaeger.Options{
+// 		AgentEndpoint:     agentEndpointURI,
+// 		CollectorEndpoint: collectorEndpointURI,
+// 		ServiceName:       "ipfs-cluster-ctl",
+// 	})
+// 	if err != nil {
+// 		log.Fatalf("Failed to create the Jaeger exporter: %v", err)
+// 	}
+// 	// Register/enable the trace exporter
+// 	trace.RegisterExporter(je)
 
-	// For demo purposes, set the trace sampling probability to be high
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
-}
+// 	// For demo purposes, set the trace sampling probability to be high
+// 	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
+// }

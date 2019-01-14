@@ -167,16 +167,26 @@ func NewCluster(
 }
 
 func (c *Cluster) setupRPC() error {
-	sh := &ocgorpc.ServerHandler{}
-	rpcServer := rpc.NewServer(c.host, version.RPCProtocol, rpc.WithServerStatsHandler(sh))
+	var rpcServer *rpc.Server
+	if c.config.Tracing {
+		sh := &ocgorpc.ServerHandler{}
+		rpcServer = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithServerStatsHandler(sh))
+	} else {
+		rpcServer = rpc.NewServer(c.host, version.RPCProtocol)
+	}
 	err := rpcServer.RegisterName("Cluster", &RPCAPI{c})
 	if err != nil {
 		return err
 	}
 	c.rpcServer = rpcServer
 
-	csh := &ocgorpc.ClientHandler{}
-	rpcClient := rpc.NewClientWithServer(c.host, version.RPCProtocol, rpcServer, rpc.WithClientStatsHandler(csh))
+	var rpcClient *rpc.Client
+	if c.config.Tracing {
+		csh := &ocgorpc.ClientHandler{}
+		rpcClient = rpc.NewClientWithServer(c.host, version.RPCProtocol, rpcServer, rpc.WithClientStatsHandler(csh))
+	} else {
+		rpcClient = rpc.NewClientWithServer(c.host, version.RPCProtocol, rpcServer)
+	}
 	c.rpcClient = rpcClient
 	return nil
 }

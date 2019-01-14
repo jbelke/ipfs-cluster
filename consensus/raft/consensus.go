@@ -27,6 +27,8 @@ import (
 
 var logger = logging.Logger("consensus")
 
+var tracing bool
+
 // Consensus handles the work of keeping a shared-state between
 // the peers of an IPFS Cluster, as well as modifying that state and
 // applying any updates in a thread-safe manner.
@@ -65,6 +67,9 @@ func NewConsensus(
 	if err != nil {
 		return nil, err
 	}
+
+	// elevate to package global var so accessible from LogOp.ApplyTo.
+	tracing = cfg.Tracing
 
 	baseOp := &LogOp{}
 
@@ -289,11 +294,13 @@ func (cc *Consensus) commit(ctx context.Context, op *LogOp, rpcOp string, redire
 	ctx, span := trace.StartSpan(ctx, "consensus/commit")
 	defer span.End()
 
-	// required to cross the serialized boundary
-	op.SpanCtx = span.SpanContext()
-	tagmap := tag.FromContext(ctx)
-	if tagmap != nil {
-		op.TagCtx = tag.Encode(tagmap)
+	if cc.config.Tracing {
+		// required to cross the serialized boundary
+		op.SpanCtx = span.SpanContext()
+		tagmap := tag.FromContext(ctx)
+		if tagmap != nil {
+			op.TagCtx = tag.Encode(tagmap)
+		}
 	}
 
 	var finalErr error
