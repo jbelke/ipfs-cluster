@@ -20,9 +20,8 @@ const (
 	DefaultPrometheusEndpoint     = ":8888"
 	DefaultStatsReportingInterval = 2 * time.Second
 
-	DefaultEnableTracing       = false
-	DefaultJaegerAgentEndpoint = "0.0.0.0:6831"
-	// DefaultJaegerCollectorEndpoint = "http://0.0.0.0:14268/api/traces"
+	DefaultEnableTracing           = false
+	DefaultJaegerAgentEndpoint     = "0.0.0.0:6831"
 	DefaultJaegerCollectorEndpoint = "http://0.0.0.0:14268"
 	DefaultTracingSamplingProb     = 0.3
 	DefaultTracingServiceName      = "cluster-daemon"
