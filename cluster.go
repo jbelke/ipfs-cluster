@@ -994,17 +994,19 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		return true, c.consensus.LogPin(pin)
 	}
 
-	allocs, err := c.allocate(
-		pin.Cid,
-		pin.ReplicationFactorMin,
-		pin.ReplicationFactorMax,
-		blacklist,
-		prioritylist,
-	)
-	if err != nil {
-		return false, err
+	if len(pin.Allocations) == 0 {
+		allocs, err := c.allocate(
+			pin.Cid,
+			pin.ReplicationFactorMin,
+			pin.ReplicationFactorMax,
+			blacklist,
+			prioritylist,
+		)
+		if err != nil {
+			return false, err
+		}
+		pin.Allocations = allocs
 	}
-	pin.Allocations = allocs
 
 	if curr, _ := c.PinGet(pin.Cid); curr.Equals(pin) {
 		// skip pinning

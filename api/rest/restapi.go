@@ -944,27 +944,38 @@ func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.Pi
 	name := queryValues.Get("name")
 	pin.Name = name
 	pin.MaxDepth = -1 // For now, all pins are recursive
-	rplStr := queryValues.Get("replication")
-	if rplStr == "" { // compat <= 0.4.0
-		rplStr = queryValues.Get("replication_factor")
-	}
-	rplStrMin := queryValues.Get("replication-min")
-	if rplStrMin == "" { // compat <= 0.4.0
-		rplStrMin = queryValues.Get("replication_factor_min")
-	}
-	rplStrMax := queryValues.Get("replication-max")
-	if rplStrMax == "" { // compat <= 0.4.0
-		rplStrMax = queryValues.Get("replication_factor_max")
-	}
-	if rplStr != "" { // override
-		rplStrMin = rplStr
-		rplStrMax = rplStr
-	}
-	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
-		pin.ReplicationFactorMin = rpl
-	}
-	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
+
+	// allocations will get priority over replication factor, replication factor min
+	// and replication factor max
+	allocations := queryValues.Get("allocations")
+	if allocations != "" {
+		pin.Allocations = strings.Split(strings.TrimSpace(allocations), ",")
+		rpl := len(pin.Allocations)
 		pin.ReplicationFactorMax = rpl
+		pin.ReplicationFactorMin = rpl
+	} else {
+		rplStr := queryValues.Get("replication")
+		if rplStr == "" { // compat <= 0.4.0
+			rplStr = queryValues.Get("replication_factor")
+		}
+		rplStrMin := queryValues.Get("replication-min")
+		if rplStrMin == "" { // compat <= 0.4.0
+			rplStrMin = queryValues.Get("replication_factor_min")
+		}
+		rplStrMax := queryValues.Get("replication-max")
+		if rplStrMax == "" { // compat <= 0.4.0
+			rplStrMax = queryValues.Get("replication_factor_max")
+		}
+		if rplStr != "" { // override
+			rplStrMin = rplStr
+			rplStrMax = rplStr
+		}
+		if rpl, err := strconv.Atoi(rplStrMin); err == nil {
+			pin.ReplicationFactorMin = rpl
+		}
+		if rpl, err := strconv.Atoi(rplStrMax); err == nil {
+			pin.ReplicationFactorMax = rpl
+		}
 	}
 
 	return pin
