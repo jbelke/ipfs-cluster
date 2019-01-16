@@ -192,7 +192,9 @@ requires authorization. implies --https, which you can disable with --force-http
 		return nil
 	}
 	app.After = func(c *cli.Context) error {
-		tracer.Flush()
+		// TODO: need to figure out best way to configure tracing for ctl
+		// leaving the following as it is still useful for local debugging.
+		// tracer.Flush()
 		return nil
 	}
 
