@@ -63,17 +63,36 @@ func (c *defaultClient) PeerRm(id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (c *defaultClient) Pin(ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error {
+func (c *defaultClient) Pin(ci cid.Cid, allocations []peer.ID, replicationFactorMin, replicationFactorMax int, name string) error {
+	var urlString string
 	escName := url.QueryEscape(name)
-	err := c.do(
-		"POST",
-		fmt.Sprintf(
+
+	if len(allocations) > 0 {
+		var builder strings.Builder
+		for _, peer := range allocations {
+			builder.WriteString(peer.Pretty() + ",")
+		}
+		allocationString := strings.TrimSuffix(builder.String(), ",")
+
+		urlString = fmt.Sprintf(
+			"/pins/%s?allocations=%s&name=%s",
+			ci.String(),
+			allocationString,
+			escName,
+		)
+	} else {
+		urlString = fmt.Sprintf(
 			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
 			ci.String(),
 			replicationFactorMin,
 			replicationFactorMax,
 			escName,
-		),
+		)
+	}
+
+	err := c.do(
+		"POST",
+		urlString,
 		nil,
 		nil,
 		nil,

@@ -453,9 +453,18 @@ in the cluster and should be part of the list offered by "pin ls".
 An optional replication factor can be provided: -1 means "pin everywhere"
 and 0 means use cluster's default setting. Positive values indicate how many
 peers should pin this content.
+
+An optional allocations argument can be provided, allocations should be a
+comma-separated list of peer ids of node on which we want to pin.
+Allocations will be prioritized over other similar options such as replication,
+replication-min and replication-max
 `,
 					ArgsUsage: "<CID>",
 					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "allocations",
+							Usage: "Comma-separated list of peer ids of node to which we want to pin",
+						},
 						cli.IntFlag{
 							Name:  "replication, r",
 							Value: 0,
@@ -495,15 +504,31 @@ peers should pin this content.
 						ci, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
 
-						rpl := c.Int("replication")
-						rplMin := c.Int("replication-min")
-						rplMax := c.Int("replication-max")
-						if rpl != 0 {
+						var rpl, rplMin, rplMax int
+						var peers []peer.ID
+
+						allocationsStr := c.String("allocations")
+						if allocationsStr != "" {
+							for _, peerIDstr := range strings.Split(strings.TrimSpace(allocationsStr), ",") {
+								peerID, err := peer.IDB58Decode(strings.TrimSpace(peerIDstr))
+								checkErr("parsing peer id", err)
+
+								peers = append(peers, peerID)
+							}
+
+							rpl = len(peers)
 							rplMin = rpl
 							rplMax = rpl
+						} else {
+							rpl = c.Int("replication")
+							rplMin = c.Int("replication-min")
+							rplMax = c.Int("replication-max")
+							if rpl != 0 {
+								rplMin = rpl
+								rplMax = rpl
+							}
 						}
-
-						cerr := globalClient.Pin(ci, rplMin, rplMax, c.String("name"))
+						cerr := globalClient.Pin(ci, peers, rplMin, rplMax, c.String("name"))
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
