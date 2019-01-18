@@ -121,20 +121,20 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		cfg.BasicAuthCreds,
 		cors.New(*cfg.corsOptions()).Handler(router),
 	)
+	if cfg.Tracing {
+		handler = &ochttp.Handler{
+			Propagation:    &tracecontext.HTTPFormat{},
+			Handler:        handler,
+			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindServer},
+			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
+		}
+	}
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           router,
-	}
-	if cfg.Tracing {
-		s.Handler = &ochttp.Handler{
-			Propagation:    &tracecontext.HTTPFormat{},
-			Handler:        router,
-			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindServer},
-			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
-		}
+		Handler:           handler,
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168

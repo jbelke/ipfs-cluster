@@ -123,6 +123,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	c := &http.Client{} // timeouts are handled by context timeouts
 	if cfg.Tracing {
 		c.Transport = &ochttp.Transport{
+			Base:           http.DefaultTransport,
 			Propagation:    &tracecontext.HTTPFormat{},
 			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindClient},
 			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },

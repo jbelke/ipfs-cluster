@@ -31,13 +31,14 @@ type LogOp struct {
 	Cid       api.PinSerial
 	Type      LogOpType
 	consensus *Consensus
+	tracing   bool
 }
 
 // ApplyTo applies the operation to the State
 func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	var err error
 	ctx := context.Background()
-	if tracing {
+	if op.tracing {
 		tagmap, err := tag.Decode(op.TagCtx)
 		if err != nil {
 			logger.Error(err)

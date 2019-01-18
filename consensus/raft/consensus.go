@@ -27,8 +27,6 @@ import (
 
 var logger = logging.Logger("consensus")
 
-var tracing bool
-
 // Consensus handles the work of keeping a shared-state between
 // the peers of an IPFS Cluster, as well as modifying that state and
 // applying any updates in a thread-safe manner.
@@ -68,10 +66,7 @@ func NewConsensus(
 		return nil, err
 	}
 
-	// elevate to package global var so accessible from LogOp.ApplyTo.
-	tracing = cfg.Tracing
-
-	baseOp := &LogOp{}
+	baseOp := &LogOp{tracing: cfg.Tracing}
 
 	logger.Debug("starting Consensus and waiting for a leader...")
 	consensus := libp2praft.NewOpLog(state, baseOp)

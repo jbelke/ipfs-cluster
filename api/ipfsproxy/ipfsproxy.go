@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
-	"github.com/ipfs/ipfs-cluster/version"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/trace"
+
+	"github.com/ipfs/ipfs-cluster/adder/adderutils"
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
@@ -131,23 +131,27 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
+	var handler http.Handler
 	router := mux.NewRouter()
-	s := &http.Server{
-		ReadTimeout:       cfg.ReadTimeout,
-		WriteTimeout:      cfg.WriteTimeout,
-		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
-		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           router,
-	}
+	handler = router
+
 	if cfg.Tracing {
-		s.Handler = &ochttp.Handler{
+		handler = &ochttp.Handler{
 			Propagation:  &tracecontext.HTTPFormat{},
-			Handler:      smux,
+			Handler:      router,
 			StartOptions: trace.StartOptions{SpanKind: trace.SpanKindServer},
 			FormatSpanName: func(req *http.Request) string {
 				return "proxy:" + req.Host + ":" + req.URL.Path + ":" + req.Method
 			},
 		}
+	}
+
+	s := &http.Server{
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		Handler:           handler,
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
