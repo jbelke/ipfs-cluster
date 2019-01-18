@@ -14,6 +14,8 @@ import (
 	"go.opencensus.io/trace"
 	"go.opencensus.io/zpages"
 
+	manet "github.com/multiformats/go-multiaddr-net"
+
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -79,6 +81,10 @@ func setupMetrics(cfg *MetricsConfig) {
 		logger.Fatalf("failed to register views: %v", err)
 	}
 
+	_, promAddr, err := manet.DialArgs(cfg.PrometheusEndpoint)
+	if err != nil {
+		logger.Fatalf("Failed to parse multiaddr to ip:port: %v\n", err)
+	}
 	go func() {
 		mux := http.NewServeMux()
 		zpages.Handle(mux, "/debug")
@@ -94,7 +100,7 @@ func setupMetrics(cfg *MetricsConfig) {
 		mux.Handle("/debug/heap", pprof.Handler("heap"))
 		mux.Handle("/debug/mutex", pprof.Handler("mutex"))
 		mux.Handle("/debug/threadcreate", pprof.Handler("threadcreate"))
-		if err := http.ListenAndServe(cfg.PrometheusEndpoint, mux); err != nil {
+		if err := http.ListenAndServe(promAddr, mux); err != nil {
 			logger.Fatalf("Failed to run Prometheus /metrics endpoint: %v", err)
 		}
 	}()
@@ -102,12 +108,16 @@ func setupMetrics(cfg *MetricsConfig) {
 
 // setupTracing configures a OpenCensus Tracing exporter for Jaeger.
 func setupTracing(cfg *TracingConfig) *jaeger.Exporter {
+	_, agentAddr, err := manet.DialArgs(cfg.JaegerAgentEndpoint)
+	if err != nil {
+		logger.Fatalf("Failed to parse multiaddr to ip:port: %v\n", err)
+	}
 	// setup Jaeger
 	je, err := jaeger.NewExporter(jaeger.Options{
-		AgentEndpoint: cfg.JaegerAgentEndpoint,
-		// CollectorEndpoint: cfg.JaegerCollectorEndpoint,
-		// Endpoint:    cfg.JaegerCollectorEndpoint,
-		ServiceName: cfg.TracingServiceName,
+		AgentEndpoint: agentAddr,
+		Process: jaeger.Process{
+			ServiceName: cfg.TracingServiceName,
+		},
 	})
 	if err != nil {
 		logger.Fatalf("Failed to create the Jaeger exporter: %v", err)

@@ -215,7 +215,7 @@ func (ipfs *Connector) Shutdown(ctx context.Context) error {
 // returns an error and an empty IPFSID which also
 // contains the error message.
 func (ipfs *Connector) ID(ctx context.Context) (api.IPFSID, error) {
-	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Shutdown")
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/ID")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)

@@ -444,7 +444,8 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 		if t == Cluster {
 			continue
 		}
-		err := updateJSONConfigs(sections[t], jcfg.getSection(t))
+		jsection := jcfg.getSection(t)
+		err := updateJSONConfigs(cfg.sections[t], &jsection)
 		if err != nil {
 			return nil, err
 		}

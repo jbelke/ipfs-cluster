@@ -2,12 +2,13 @@ package observations
 
 import (
 	"encoding/json"
-	"strconv"
+	"errors"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs/ipfs-cluster/config"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 const metricsConfigKey = "metrics"
@@ -17,14 +18,13 @@ const envConfigKey = "cluster_observations"
 // Default values for this Config.
 const (
 	DefaultEnableStats            = false
-	DefaultPrometheusEndpoint     = ":8888"
+	DefaultPrometheusEndpoint     = "/ip4/0.0.0.0/tcp/8888"
 	DefaultStatsReportingInterval = 2 * time.Second
 
-	DefaultEnableTracing           = false
-	DefaultJaegerAgentEndpoint     = "0.0.0.0:6831"
-	DefaultJaegerCollectorEndpoint = "http://0.0.0.0:14268"
-	DefaultTracingSamplingProb     = 0.3
-	DefaultTracingServiceName      = "cluster-daemon"
+	DefaultEnableTracing       = false
+	DefaultJaegerAgentEndpoint = "/ip4/0.0.0.0/udp/6831"
+	DefaultTracingSamplingProb = 0.3
+	DefaultTracingServiceName  = "cluster-daemon"
 )
 
 // MetricsConfig configures metrics collection.
@@ -32,14 +32,14 @@ type MetricsConfig struct {
 	config.Saver
 
 	EnableStats            bool
-	PrometheusEndpoint     string
+	PrometheusEndpoint     ma.Multiaddr
 	StatsReportingInterval time.Duration
 }
 
 type jsonMetricsConfig struct {
-	EnableStats            string `json:"enable_stats"`
+	EnableStats            bool   `json:"enable_stats"`
 	PrometheusEndpoint     string `json:"prometheus_endpoint"`
-	StatsReportingInterval string `json:"metrics_reporting_interval"`
+	StatsReportingInterval string `json:"reporting_interval"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -50,7 +50,8 @@ func (cfg *MetricsConfig) ConfigKey() string {
 // Default sets the fields of this Config to sensible values.
 func (cfg *MetricsConfig) Default() error {
 	cfg.EnableStats = DefaultEnableStats
-	cfg.PrometheusEndpoint = DefaultPrometheusEndpoint
+	endpointAddr, _ := ma.NewMultiaddr(DefaultPrometheusEndpoint)
+	cfg.PrometheusEndpoint = endpointAddr
 	cfg.StatsReportingInterval = DefaultStatsReportingInterval
 
 	return nil
@@ -59,7 +60,14 @@ func (cfg *MetricsConfig) Default() error {
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *MetricsConfig) Validate() error {
-	//TODO(lanzafame)
+	if cfg.EnableStats {
+		if cfg.PrometheusEndpoint == nil {
+			return errors.New("metrics.prometheus_endpoint is undefined")
+		}
+		if cfg.StatsReportingInterval < 0 {
+			return errors.New("metrics.reporting_interval is invalid")
+		}
+	}
 	return nil
 }
 
@@ -90,19 +98,16 @@ func (cfg *MetricsConfig) LoadJSON(raw []byte) error {
 }
 
 func (cfg *MetricsConfig) loadMetricsOptions(jcfg *jsonMetricsConfig) error {
-	var err error
-	cfg.EnableStats, err = strconv.ParseBool(jcfg.EnableStats)
-	if err != nil {
-		return err
-	}
-	cfg.PrometheusEndpoint = jcfg.PrometheusEndpoint
+	cfg.EnableStats = jcfg.EnableStats
+	endpointAddr, _ := ma.NewMultiaddr(jcfg.PrometheusEndpoint)
+	cfg.PrometheusEndpoint = endpointAddr
 
 	return config.ParseDurations(
 		metricsConfigKey,
 		&config.DurationOpt{
 			Duration: jcfg.StatsReportingInterval,
 			Dst:      &cfg.StatsReportingInterval,
-			Name:     "metrics_reporting_interval",
+			Name:     "reporting_interval",
 		},
 	)
 }
@@ -110,8 +115,8 @@ func (cfg *MetricsConfig) loadMetricsOptions(jcfg *jsonMetricsConfig) error {
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *MetricsConfig) ToJSON() ([]byte, error) {
 	jcfg := &jsonMetricsConfig{
-		EnableStats:            strconv.FormatBool(cfg.EnableStats),
-		PrometheusEndpoint:     cfg.PrometheusEndpoint,
+		EnableStats:            cfg.EnableStats,
+		PrometheusEndpoint:     cfg.PrometheusEndpoint.String(),
 		StatsReportingInterval: cfg.StatsReportingInterval.String(),
 	}
 
@@ -122,19 +127,17 @@ func (cfg *MetricsConfig) ToJSON() ([]byte, error) {
 type TracingConfig struct {
 	config.Saver
 
-	EnableTracing           bool
-	JaegerAgentEndpoint     string
-	JaegerCollectorEndpoint string
-	TracingSamplingProb     float64
-	TracingServiceName      string
+	EnableTracing       bool
+	JaegerAgentEndpoint ma.Multiaddr
+	TracingSamplingProb float64
+	TracingServiceName  string
 }
 
 type jsonTracingConfig struct {
-	EnableTracing           string  `json:"enable_tracing"`
-	JaegerAgentEndpoint     string  `json:"jaeger_agent_endpoint"`
-	JaegerCollectorEndpoint string  `json:"jaeger_collector_endpoint"`
-	TracingSamplingProb     float64 `json:"tracing_sampling_prob"`
-	TracingServiceName      string  `json:"tracing_service_name"`
+	EnableTracing       bool    `json:"enable_tracing"`
+	JaegerAgentEndpoint string  `json:"jaeger_agent_endpoint"`
+	TracingSamplingProb float64 `json:"sampling_prob"`
+	TracingServiceName  string  `json:"service_name"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -145,8 +148,8 @@ func (cfg *TracingConfig) ConfigKey() string {
 // Default sets the fields of this Config to sensible values.
 func (cfg *TracingConfig) Default() error {
 	cfg.EnableTracing = DefaultEnableTracing
-	cfg.JaegerAgentEndpoint = DefaultJaegerAgentEndpoint
-	cfg.JaegerCollectorEndpoint = DefaultJaegerCollectorEndpoint
+	agentAddr, _ := ma.NewMultiaddr(DefaultJaegerAgentEndpoint)
+	cfg.JaegerAgentEndpoint = agentAddr
 	cfg.TracingSamplingProb = DefaultTracingSamplingProb
 	cfg.TracingServiceName = DefaultTracingServiceName
 	return nil
@@ -155,7 +158,14 @@ func (cfg *TracingConfig) Default() error {
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *TracingConfig) Validate() error {
-	//TODO(lanzafame)
+	if cfg.EnableTracing {
+		if cfg.JaegerAgentEndpoint == nil {
+			return errors.New("tracing.jaeger_agent_endpoint is undefined")
+		}
+		if cfg.TracingSamplingProb < 0 {
+			return errors.New("tracing.sampling_prob is invalid")
+		}
+	}
 	return nil
 }
 
@@ -186,13 +196,9 @@ func (cfg *TracingConfig) LoadJSON(raw []byte) error {
 }
 
 func (cfg *TracingConfig) loadTracingOptions(jcfg *jsonTracingConfig) error {
-	var err error
-	cfg.EnableTracing, err = strconv.ParseBool(jcfg.EnableTracing)
-	if err != nil {
-		return err
-	}
-	cfg.JaegerAgentEndpoint = jcfg.JaegerAgentEndpoint
-	cfg.JaegerCollectorEndpoint = jcfg.JaegerCollectorEndpoint
+	cfg.EnableTracing = jcfg.EnableTracing
+	agentAddr, _ := ma.NewMultiaddr(jcfg.JaegerAgentEndpoint)
+	cfg.JaegerAgentEndpoint = agentAddr
 	cfg.TracingSamplingProb = jcfg.TracingSamplingProb
 	cfg.TracingServiceName = jcfg.TracingServiceName
 
@@ -202,11 +208,10 @@ func (cfg *TracingConfig) loadTracingOptions(jcfg *jsonTracingConfig) error {
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *TracingConfig) ToJSON() ([]byte, error) {
 	jcfg := &jsonTracingConfig{
-		EnableTracing:           strconv.FormatBool(cfg.EnableTracing),
-		JaegerAgentEndpoint:     cfg.JaegerAgentEndpoint,
-		JaegerCollectorEndpoint: cfg.JaegerCollectorEndpoint,
-		TracingSamplingProb:     cfg.TracingSamplingProb,
-		TracingServiceName:      cfg.TracingServiceName,
+		EnableTracing:       cfg.EnableTracing,
+		JaegerAgentEndpoint: cfg.JaegerAgentEndpoint.String(),
+		TracingSamplingProb: cfg.TracingSamplingProb,
+		TracingServiceName:  cfg.TracingServiceName,
 	}
 
 	return config.DefaultJSONMarshal(jcfg)
