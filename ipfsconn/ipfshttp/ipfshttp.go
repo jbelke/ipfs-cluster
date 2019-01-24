@@ -411,9 +411,6 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash cid.Cid) (api.IPFSPinS
 }
 
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {
-	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/doPostCtx")
-	defer span.End()
-
 	logger.Debugf("posting %s", path)
 	urlstr := fmt.Sprintf("%s/%s", apiURL, path)
 

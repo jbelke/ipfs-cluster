@@ -59,6 +59,7 @@ type Cluster struct {
 	monitor   PeerMonitor
 	allocator PinAllocator
 	informer  Informer
+	tracer    Tracer
 
 	doneCh  chan struct{}
 	readyCh chan struct{}
@@ -91,6 +92,7 @@ func NewCluster(
 	monitor PeerMonitor,
 	allocator PinAllocator,
 	informer Informer,
+	tracer Tracer,
 ) (*Cluster, error) {
 	err := cfg.Validate()
 	if err != nil {
@@ -144,6 +146,7 @@ func NewCluster(
 		monitor:     monitor,
 		allocator:   allocator,
 		informer:    informer,
+		tracer:      tracer,
 		peerManager: peerManager,
 		shutdownB:   false,
 		removed:     false,
@@ -534,6 +537,11 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	if err := c.tracker.Shutdown(ctx); err != nil {
 		logger.Errorf("error stopping PinTracker: %s", err)
+		return err
+	}
+
+	if err := c.tracer.Shutdown(ctx); err != nil {
+		logger.Errorf("error stopping Tracer: %s", err)
 		return err
 	}
 

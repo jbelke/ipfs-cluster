@@ -137,9 +137,10 @@ func New(cfg *Config) (*Server, error) {
 
 	if cfg.Tracing {
 		handler = &ochttp.Handler{
-			Propagation:  &tracecontext.HTTPFormat{},
-			Handler:      router,
-			StartOptions: trace.StartOptions{SpanKind: trace.SpanKindServer},
+			IsPublicEndpoint: true,
+			Propagation:      &tracecontext.HTTPFormat{},
+			Handler:          router,
+			StartOptions:     trace.StartOptions{SpanKind: trace.SpanKindServer},
 			FormatSpanName: func(req *http.Request) string {
 				return "proxy:" + req.Host + ":" + req.URL.Path + ":" + req.Method
 			},

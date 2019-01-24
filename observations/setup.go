@@ -1,12 +1,13 @@
 package observations
 
 import (
+	"context"
 	"expvar"
 	"net/http"
 	"net/http/pprof"
-	"os"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	"go.opencensus.io/exporter/jaeger"
 	"go.opencensus.io/exporter/prometheus"
 	"go.opencensus.io/plugin/ochttp"
@@ -21,34 +22,54 @@ import (
 
 // SetupMetrics configures and starts stats tooling,
 // if enabled.
-func SetupMetrics(cfg *MetricsConfig) {
+func SetupMetrics(cfg *MetricsConfig) error {
 	if cfg.EnableStats {
-		logger.Error("stats collection enabled...")
-		setupMetrics(cfg)
+		logger.Info("stats collection enabled...")
+		return setupMetrics(cfg)
 	}
+	return nil
+}
+
+// JaegerTracer implements ipfscluster.Tracer.
+type JaegerTracer struct {
+	jaeger *jaeger.Exporter
+}
+
+// SetClient no-op.
+func (t *JaegerTracer) SetClient(*rpc.Client) {}
+
+// Shutdown the tracer and flush any remaining traces.
+func (t *JaegerTracer) Shutdown(context.Context) error {
+	t.jaeger.Flush()
+	return nil
 }
 
 // SetupTracing configures and starts tracing tooling,
 // if enabled.
-func SetupTracing(cfg *TracingConfig) {
-	if cfg.EnableTracing {
-		logger.Error("tracing enabled...")
-		setupTracing(cfg)
+func SetupTracing(cfg *TracingConfig) (*JaegerTracer, error) {
+	if !cfg.EnableTracing {
+		return nil, nil
 	}
+	logger.Info("tracing enabled...")
+	je, err := setupTracing(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &JaegerTracer{je}, nil
 }
 
-func setupMetrics(cfg *MetricsConfig) {
+func setupMetrics(cfg *MetricsConfig) error {
 	// setup Prometheus
 	registry := prom.NewRegistry()
 	goCollector := prom.NewGoCollector()
-	procCollector := prom.NewProcessCollector(os.Getpid(), "")
+	procCollector := prom.NewProcessCollector(prom.ProcessCollectorOpts{})
 	registry.MustRegister(goCollector, procCollector)
 	pe, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: "cluster",
 		Registry:  registry,
 	})
 	if err != nil {
-		logger.Fatalf("Failed to create Prometheus exporter: %v", err)
+		return err
 	}
 
 	// register prometheus with opencensus
@@ -57,7 +78,7 @@ func setupMetrics(cfg *MetricsConfig) {
 
 	// register the metrics views of interest
 	if err := view.Register(DefaultViews...); err != nil {
-		logger.Fatalf("failed to register views: %v", err)
+		return err
 	}
 	if err := view.Register(
 		ochttp.ClientCompletedCount,
@@ -65,7 +86,7 @@ func setupMetrics(cfg *MetricsConfig) {
 		ochttp.ClientReceivedBytesDistribution,
 		ochttp.ClientSentBytesDistribution,
 	); err != nil {
-		logger.Fatalf("failed to register views: %v", err)
+		return err
 	}
 	if err := view.Register(
 		ochttp.ServerRequestCountView,
@@ -75,15 +96,15 @@ func setupMetrics(cfg *MetricsConfig) {
 		ochttp.ServerRequestCountByMethod,
 		ochttp.ServerResponseCountByStatusCode,
 	); err != nil {
-		logger.Fatalf("failed to register views: %v", err)
+		return err
 	}
 	if err := view.Register(ocgorpc.DefaultServerViews...); err != nil {
-		logger.Fatalf("failed to register views: %v", err)
+		return err
 	}
 
 	_, promAddr, err := manet.DialArgs(cfg.PrometheusEndpoint)
 	if err != nil {
-		logger.Fatalf("Failed to parse multiaddr to ip:port: %v\n", err)
+		return err
 	}
 	go func() {
 		mux := http.NewServeMux()
@@ -104,13 +125,14 @@ func setupMetrics(cfg *MetricsConfig) {
 			logger.Fatalf("Failed to run Prometheus /metrics endpoint: %v", err)
 		}
 	}()
+	return nil
 }
 
 // setupTracing configures a OpenCensus Tracing exporter for Jaeger.
-func setupTracing(cfg *TracingConfig) *jaeger.Exporter {
+func setupTracing(cfg *TracingConfig) (*jaeger.Exporter, error) {
 	_, agentAddr, err := manet.DialArgs(cfg.JaegerAgentEndpoint)
 	if err != nil {
-		logger.Fatalf("Failed to parse multiaddr to ip:port: %v\n", err)
+		return nil, err
 	}
 	// setup Jaeger
 	je, err := jaeger.NewExporter(jaeger.Options{
@@ -120,12 +142,12 @@ func setupTracing(cfg *TracingConfig) *jaeger.Exporter {
 		},
 	})
 	if err != nil {
-		logger.Fatalf("Failed to create the Jaeger exporter: %v", err)
+		return nil, err
 	}
 
 	// register jaeger with opencensus
 	trace.RegisterExporter(je)
 	// configure tracing
 	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.TracingSamplingProb)})
-	return je
+	return je, nil
 }

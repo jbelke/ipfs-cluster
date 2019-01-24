@@ -108,8 +108,11 @@ func createCluster(
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
-	observations.SetupMetrics(cfgs.metricsCfg)
-	observations.SetupTracing(cfgs.tracingCfg)
+	err := observations.SetupMetrics(cfgs.metricsCfg)
+	checkErr("setting up Metrics", err)
+
+	tracer, err := observations.SetupTracing(cfgs.tracingCfg)
+	checkErr("setting up Tracing", err)
 
 	host, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
@@ -158,6 +161,7 @@ func createCluster(
 		mon,
 		alloc,
 		informer,
+		tracer,
 	)
 }
 

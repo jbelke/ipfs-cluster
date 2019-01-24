@@ -172,3 +172,9 @@ type PeerMonitor interface {
 	// to trigger self-healing measures or re-pinnings of content.
 	Alerts() <-chan api.Alert
 }
+
+// Tracer implements Component as a way
+// to shutdown and flush and remaining traces.
+type Tracer interface {
+	Component
+}

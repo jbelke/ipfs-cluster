@@ -123,10 +123,11 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 	)
 	if cfg.Tracing {
 		handler = &ochttp.Handler{
-			Propagation:    &tracecontext.HTTPFormat{},
-			Handler:        handler,
-			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindServer},
-			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
+			IsPublicEndpoint: true,
+			Propagation:      &tracecontext.HTTPFormat{},
+			Handler:          handler,
+			StartOptions:     trace.StartOptions{SpanKind: trace.SpanKindServer},
+			FormatSpanName:   func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
 		}
 	}
 	s := &http.Server{
