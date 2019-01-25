@@ -17,6 +17,7 @@ clean: rwundo clean_sharness
 install: deps
 	$(MAKE) -C cmd/ipfs-cluster-service install
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
+	go get github.com/prometheus/client_golang
 
 docker_install: docker_deps
 	$(MAKE) -C cmd/ipfs-cluster-service install
